@@ -6,7 +6,7 @@ A real-time Sun, Earth and Moon in the browser — WebGPU + three.js TSL.
 - Earth with live satellite cloud maps and settlement lights at night.
 - Click Earth to open a sky view from that spot: volumetric clouds from current weather, stars, the Sun and Moon at true relative sizes, grass with grazing bison and rhinos on land, and a jumping mackerel over water.
 
-Live: https://sun-earth-moon-3wn.pages.dev
+Live: https://sun-earth-moon-webgpu.pages.dev
 
 Requires a browser with WebGPU (recent Chrome, Edge or Safari).
 

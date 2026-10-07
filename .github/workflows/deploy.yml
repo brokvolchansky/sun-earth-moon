@@ -25,12 +25,12 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project create sun-earth-moon --production-branch=master
+          command: pages project create sun-earth-moon-webgpu --production-branch=master
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public --project-name=sun-earth-moon --branch=master
+          command: pages deploy public --project-name=sun-earth-moon-webgpu --branch=master
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
