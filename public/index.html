@@ -117,7 +117,7 @@
       #skyPanel {
         position: fixed;
         right: 12px;
-        bottom: 28px;
+        bottom: 40px; /* над кнопками Sun / Earth / Moon */
         width: 600px;
         background: #05070c;
         border: 1px solid #2a3550;
@@ -201,11 +201,21 @@
         color: #9fb3d9;
         white-space: pre-wrap;
       }
-      #creditsBtn {
+      #bottomBar,
+      #bodyBar {
         position: fixed;
-        left: 10px;
         bottom: 8px;
         z-index: 2;
+        display: flex;
+        gap: 6px;
+      }
+      #bottomBar {
+        left: 10px;
+      }
+      #bodyBar {
+        right: 12px;
+      }
+      .barBtn {
         font: 12px monospace;
         color: #c9d4f0;
         background: rgba(10, 14, 28, 0.72);
@@ -214,7 +224,7 @@
         padding: 4px 10px;
         cursor: pointer;
       }
-      #creditsBtn:hover {
+      .barBtn:hover {
         border-color: rgba(180, 200, 255, 0.7);
         color: #fff;
       }
@@ -324,7 +334,14 @@
       </div>
       <div id="skyInfo"></div>
     </div>
-    <button id="creditsBtn" type="button">Credits</button>
+    <div id="bottomBar">
+      <button class="barBtn" id="creditsBtn" type="button">Credits</button>
+    </div>
+    <div id="bodyBar">
+      <button class="barBtn" id="goSun" type="button" title="Fly to the Sun and follow it">☀ Sun</button>
+      <button class="barBtn" id="goEarth" type="button" title="Fly to Earth and follow it">🌍 Earth</button>
+      <button class="barBtn" id="goMoon" type="button" title="Fly to the Moon and follow it">☾ Moon</button>
+    </div>
     <dialog id="creditsDlg" aria-labelledby="creditsTitle">
       <header><h2 id="creditsTitle">Credits &amp; licenses</h2><button id="creditsClose" type="button" aria-label="Close">×</button></header>
       <div class="body">
@@ -482,22 +499,34 @@
       const CAMERA_DIST = 6; // горизонтальное расстояние камеры до центра
       const TILT_DEG = 30; // камера над плоскостью орбиты на 30°
       const BASE_ORBIT = 4.0; // максимальный радиус орбиты (уменьшится под экран)
-      const GLOBE_FRAC = 0.17; // радиус шара = доля радиуса орбиты
+      // НАСТОЯЩИЙ МАСШТАБ: 1 а.е. = 149 597 871 км, R☉ = 695 700 км, R⊕ = 6 371 км, R☾ = 1 737.4 км
+      const AU_OVER_RSUN = 149597870.7 / 695700; // ≈ 215.03 радиуса Солнца в 1 а.е.
+      const RSUN_OVER_REARTH = 695700 / 6371; // ≈ 109.20
+      const RMOON_OVER_REARTH = 1737.4 / 6371; // ≈ 0.2727
+      // По умолчанию: честные РАЗМЕРЫ при сжатом расстоянии — радиус Солнца = половина радиуса орбиты,
+      // Земля = Солнце / 109.2, Луна = Земля × 0.2727. Флажок «Show REAL scale» — ещё и настоящие расстояния:
+      // все тела уменьшаются одним множителем, так что радиус Солнца = орбита / 215.03.
+      const SUN_ORBIT_FRAC = 0.5;
+      const GLOBE_FRAC = SUN_ORBIT_FRAC / RSUN_OVER_REARTH; // радиус Земли = доля радиуса орбиты (≈ 1/218)
+      const MOON_DIST_COMPRESSED = 5; // расстояние до Луны в радиусах Земли в сжатом режиме
+      const REAL_BODY_SCALE = 1 / AU_OVER_RSUN / SUN_ORBIT_FRAC; // ≈ 0.0093 — множитель тел для настоящих расстояний
       const MARGIN = 0.04; // отступ от краёв холста
       const ORBIT_BASE = 0.28; // рад/с — точка отсчёта: орбита Земли (при speedFactor=1)
       const SPIN_BASE = ORBIT_BASE * (365.2564 / 0.99727); // Земля: ~366x орбиты (1 вращение/сутки)
       const MOON_BASE = ORBIT_BASE * (365.2564 / 27.3217); // Луна: ~13.37x орбиты Земли
       const GLOBE_TILT = (23.44 * Math.PI) / 180; // наклон оси Земли (реальный 23.44°)
       const MOON_TILT = (5.14 * Math.PI) / 180; // наклон орбиты Луны к эклиптике (5.14°)
-      const MOON_DIST_FRAC = 2.5; // дистанция Луны в радиусах Земли
-      const SUN_FRAC = 0.38 * 4; // солнце ×4
+      const SUN_FRAC = RSUN_OVER_REARTH; // радиус Солнца в радиусах Земли (настоящий)
       // Наведение на Землю: замедлить ВСЁ (спин, орбита, Луна) — до ~1 обр/10с спина
       const HOVER_SCALE = (Math.PI * 2) / 10 / SPIN_BASE;
       // Параметры инспектора
       const PARAMS = {
         timeScale: 1, // × реального времени (1 = реальное время)
         distanceFactor: 1.0, // × расстояние Земли до Солнца
+        realScale: false, // настоящие расстояния (тела уменьшаются одним множителем)
       };
+      let bodyScale = 1; // текущий множитель размеров тел (1 или REAL_BODY_SCALE)
+      let sunBaseK = 0, sunBaseR = 0; // масштаб и радиус Солнца при bodyScale = 1
       let simTime = Date.now(); // время сцены, мс UTC
       let live = true; // «живое» время: сцена идёт строго по системным часам (ВРЕМЯ × = 1)
       let lastObserve = null; // время последней проверки наблюдателем
@@ -539,7 +568,7 @@
         camera = new THREE.PerspectiveCamera(
           55,
           innerWidth / innerHeight,
-          0.1,
+          1e-6, // ближняя плоскость: Земля в настоящем масштабе ~1.7e-4 единицы сцены
           200,
         );
         camera.position.set(
@@ -1174,6 +1203,8 @@
         const sr = globeR * SUN_FRAC;
         sunRadius = sr;
         const k = sr / SUN_SPHERE_R;
+        sunBaseK = k;
+        sunBaseR = sr;
         sunGroup = new THREE.Group();
         sunGroup.scale.setScalar(k);
         scene.add(sunGroup);
@@ -1427,7 +1458,7 @@
 
       // --- Луна: сфера + текстура, положение по реальной дате, видимой стороной к Земле ---
       function makeMoon() {
-        const moonR = globeR * 0.27; // Луна ~0.27x Земли (реальный размер)
+        const moonR = globeR * RMOON_OVER_REARTH; // Луна 0.2727 Земли (настоящий размер)
         const geo = new THREE.SphereGeometry(moonR, 48, 32); // сглажена
 
         const mColor = moonTex
@@ -1481,9 +1512,11 @@
         _m4.makeBasis(_ax, _ay, _az);
         globe.quaternion.setFromRotationMatrix(_m4);
 
-        // Луна: геоцентрическое направление по дате, расстояние условное (MOON_DIST_FRAC радиусов Земли)
+        // Луна: геоцентрическое направление и НАСТОЯЩЕЕ расстояние на дату (в радиусах Земли, ~56–64)
         const m = Astronomy.RotateVector(rJ, Astronomy.GeoMoon(t));
-        toScene(m, _mv).normalize().multiplyScalar(globeR * MOON_DIST_FRAC);
+        const moonDistEarthR = (m.Length() * 149597870.7) / 6371;
+        // сжатый режим: Луна в 5 радиусах Земли (настоящие ~60 не вписываются в сжатую схему); «Show REAL scale» — настоящее
+        toScene(m, _mv).normalize().multiplyScalar(globeR * bodyScale * (PARAMS.realScale ? moonDistEarthR : MOON_DIST_COMPRESSED));
         moonMesh.position.copy(globe.position).add(_mv);
         _ax.copy(_mv).negate().normalize(); // +x Луны (долгота 0, видимая сторона) — к Земле
         _ay.set(0, 1, 0).addScaledVector(_ax, -_ax.y).normalize();
@@ -2555,7 +2588,8 @@
 
         buildStatic();
 
-        renderer = new THREE.WebGPURenderer({ antialias: true });
+        // перевёрнутый буфер глубины: точность для огромного разброса масштабов (Земля ≈ 1/23 000 орбиты)
+        renderer = new THREE.WebGPURenderer({ antialias: true, reversedDepthBuffer: true });
         renderer.setSize(innerWidth, innerHeight);
         renderer.setPixelRatio(devicePixelRatio);
         renderer.inspector = new Inspector();
@@ -2595,6 +2629,28 @@
         const gui = renderer.inspector.createParameters("Parameters");
         const timeCtrl = gui.add(PARAMS, "timeScale", 0, 20000, 1).name("TIME ×");
         const distCtrl = gui.add(PARAMS, "distanceFactor", 0.4, 3.0, 0.01).name("DISTANCE ×");
+        // режим масштаба: тела уменьшаются/увеличиваются одним множителем, камера плавно следует
+        function applyBodyScale() {
+          const nb = PARAMS.realScale ? REAL_BODY_SCALE : 1;
+          const ratio = nb / bodyScale;
+          bodyScale = nb;
+          sunGroup.scale.setScalar(sunBaseK * nb);
+          sunScaleU.value = sunBaseK * nb;
+          sunRadius = sunBaseR * nb;
+          globe.scale.setScalar(nb);
+          moonMesh.scale.setScalar(nb);
+          if (follow) {
+            follow.offset.multiplyScalar(ratio);
+            follow.fromTarget = controls.target.clone();
+            follow.fromCam = camera.position.clone();
+            follow.t0 = performance.now();
+            follow.flying = true;
+            controls.minDistance *= ratio;
+          } else {
+            controls.minDistance = sunRadius * 1.2;
+          }
+        }
+        gui.add(PARAMS, "realScale").name("Show REAL scale").onChange(applyBodyScale);
         // время сцены -> текущее реальное, скорость ×1 (при клике по Земле и «Где я»)
         const syncNow = () => {
           simTime = Date.now();
@@ -2623,11 +2679,11 @@
             t0: performance.now(),
             fromTarget: controls.target.clone(),
             fromCam: camera.position.clone(),
-            offset: dirW.multiplyScalar(globeR * 3.2), // камера над точкой, точка смотрит на нас
+            offset: dirW.multiplyScalar(globeR * bodyScale * 3.2), // камера над точкой, точка смотрит на нас
             prev: p.clone(),
             flying: true,
           };
-          controls.minDistance = globeR * 1.15;
+          controls.minDistance = globeR * bodyScale * 1.15;
         }
         gui
           .add(
@@ -2706,23 +2762,9 @@
           }, 260);
         });
 
-        // Привязка камеры двойным кликом: Солнце, Луна или Земля; двойной клик в пустоту — отвязка
-        renderer.domElement.addEventListener("dblclick", (e) => {
-          clearTimeout(pendingClick);
-          pendingClick = null;
-          const rect = renderer.domElement.getBoundingClientRect();
-          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-          raycaster.setFromCamera(mouse, camera);
-          const sunBall = sunGroup.children[0], earthBall = globe.children[0];
-          const hit = raycaster.intersectObjects([sunBall, moonMesh, earthBall], false)[0];
-          if (!hit) {
-            follow = null;
-            controls.minDistance = sunRadius * 1.2;
-            return;
-          }
-          const body = hit.object === sunBall ? sunGroup : hit.object === moonMesh ? moonMesh : globe;
-          const r = body === sunGroup ? sunRadius : body === moonMesh ? globeR * 0.27 : globeR;
+        // перелёт к телу и слежение за ним (двойной клик по телу и кнопки внизу)
+        function flyToBody(body) {
+          const r = body === sunGroup ? sunRadius : (body === moonMesh ? globeR * RMOON_OVER_REARTH : globeR) * bodyScale;
           const p = body.getWorldPosition(new THREE.Vector3());
           const dir = camera.position.clone().sub(controls.target).normalize();
           const dist = Math.max(r * 2.2, Math.min(camera.position.distanceTo(p), r * 7));
@@ -2736,7 +2778,41 @@
             flying: true,
           };
           controls.minDistance = r * 1.15;
+        }
+        // Привязка камеры двойным кликом: Солнце, Луна или Земля; двойной клик в пустоту — отвязка
+        renderer.domElement.addEventListener("dblclick", (e) => {
+          clearTimeout(pendingClick);
+          pendingClick = null;
+          const rect = renderer.domElement.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const sunBall = sunGroup.children[0], earthBall = globe.children[0];
+          let hitObj = raycaster.intersectObjects([sunBall, moonMesh, earthBall], false)[0]?.object || null;
+          if (!hitObj) {
+            // в настоящем масштабе Земля и Луна меньше пикселя: выбор по близости к курсору (до 30 px)
+            const camDir = camera.getWorldDirection(new THREE.Vector3());
+            let best = 30;
+            for (const o of [sunBall, earthBall, moonMesh]) {
+              const wp = o.getWorldPosition(new THREE.Vector3());
+              if (wp.clone().sub(camera.position).dot(camDir) <= 0) continue; // позади камеры
+              const pr = wp.project(camera);
+              const sx = ((pr.x + 1) / 2) * rect.width, sy = ((1 - pr.y) / 2) * rect.height;
+              const d = Math.hypot(sx - (e.clientX - rect.left), sy - (e.clientY - rect.top));
+              if (d < best) { best = d; hitObj = o; }
+            }
+          }
+          if (!hitObj) {
+            follow = null;
+            controls.minDistance = sunRadius * 1.2;
+            return;
+          }
+          flyToBody(hitObj === sunBall ? sunGroup : hitObj === moonMesh ? moonMesh : globe);
         });
+        // кнопки Sun / Earth / Moon — то же, что двойной клик по телу
+        document.getElementById("goSun").addEventListener("click", () => flyToBody(sunGroup));
+        document.getElementById("goEarth").addEventListener("click", () => flyToBody(globe));
+        document.getElementById("goMoon").addEventListener("click", () => flyToBody(moonMesh));
         window.addEventListener("pointerup", () => {
           holdEarth = false;
         });
