@@ -81,6 +81,77 @@
         color: #6f7a99;
         font-style: italic;
       }
+      #constTip {
+        position: fixed;
+        z-index: 6;
+        pointer-events: none;
+        padding: 3px 9px;
+        border-radius: 5px;
+        background: rgba(10, 6, 24, 0.72);
+        border: 1px solid rgba(255, 79, 224, 0.55);
+        box-shadow: 0 0 10px rgba(255, 79, 224, 0.35);
+        font: 600 13px system-ui, sans-serif;
+        color: #ffe3fa;
+        text-shadow: 0 0 6px #ff4fe0, 0 0 12px rgba(255, 79, 224, 0.6);
+        white-space: nowrap;
+      }
+      #constTip small {
+        display: block;
+        font-weight: 400;
+        font-size: 11px;
+        color: #d9c2f0;
+        text-shadow: none;
+      }
+      #constInfo {
+        position: fixed;
+        z-index: 7;
+        width: min(360px, calc(100vw - 24px));
+        max-height: min(70vh, 560px);
+        overflow-y: auto;
+        padding: 14px 16px 12px;
+        border-radius: 10px;
+        background: rgba(10, 8, 26, 0.95);
+        border: 1px solid rgba(255, 79, 224, 0.5);
+        box-shadow: 0 0 22px rgba(255, 79, 224, 0.25), 0 10px 40px rgba(0, 0, 0, 0.6);
+        font: 13px/1.5 system-ui, sans-serif;
+        color: #e6e2f5;
+      }
+      #constInfo h3 {
+        margin: 0 24px 2px 0;
+        font-size: 17px;
+        color: #ffe3fa;
+        text-shadow: 0 0 8px rgba(255, 79, 224, 0.7);
+      }
+      #constInfo .meta {
+        color: #b8aed6;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      #constInfo img {
+        width: 100%;
+        border-radius: 6px;
+        margin: 4px 0 8px;
+        background: #000;
+      }
+      #constInfo a {
+        color: #ff9cf0;
+      }
+      #constInfo .src {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #8f86ad;
+      }
+      #constInfoClose {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: #e6e2f5;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+      }
       #legend b {
         color: #c9d4f0;
         font-weight: 600;
@@ -172,6 +243,16 @@
         height: 360px;
         display: block;
         cursor: grab;
+        touch-action: none; /* пальцем — обзор и щипок, без прокрутки и масштаба страницы */
+      }
+      /* узкий экран (телефон): подсказку убираем, окно неба — по ширине экрана (задаётся из кода) */
+      @media (max-width: 640px) {
+        #legend {
+          display: none;
+        }
+        #skyPanel {
+          right: 8px;
+        }
       }
       #skyView {
         position: relative;
@@ -322,11 +403,12 @@
       <li><b>Hold</b> on Earth — real-time speed</li>
       <li><b>Parameters</b> panel — time, distance, Now, Where am I</li>
       <li class="note">Just a page made for fun. No location data is collected or stored:
-        your position stays in your browser, and only the selected point's coordinates are sent to Open-Meteo to get its weather.</li>
+        your position stays in your browser, and only the selected point's coordinates are sent to Open-Meteo to get its weather
+        (clicking a constellation asks Wikipedia for its description — just the name).</li>
     </ul>
     <div id="toast"></div>
     <div id="skyPanel" hidden>
-      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button></span><button id="skyClose" title="Close">×</button></div>
+      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button><button class="skyBtn" id="skySound" type="button" title="Sound on / off">🔊 Sound</button></span><button id="skyClose" title="Close">×</button></div>
       <div id="skyView">
         <canvas id="skyCanvas"></canvas>
         <button class="skyMark" id="markSun" title="Turn to the Sun" hidden>☀</button>
@@ -357,7 +439,8 @@
           <li>Local weather &amp; cloud cover: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> <span class="lic">data CC BY 4.0</span></li>
           <li>Settlements: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> <span class="lic">CC BY 4.0</span></li>
           <li>Sun, Moon and Earth positions: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (Don Cross) <span class="lic">MIT</span></li>
-          <li>Stars &amp; constellations: <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noopener">d3-celestial</a> (Olaf Frohn) <span class="lic">BSD-3-Clause</span></li>
+          <li>Stars, constellation lines, IAU boundaries &amp; names: <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noopener">d3-celestial</a> (Olaf Frohn) <span class="lic">BSD-3-Clause</span></li>
+          <li>Constellation descriptions: <a href="https://en.wikipedia.org/" target="_blank" rel="noopener">Wikipedia</a> <span class="lic">CC BY-SA 4.0</span></li>
         </ul>
         <h3>Textures</h3>
         <ul>
@@ -368,6 +451,14 @@
         <ul>
           <li>Mackerel: <a href="https://sketchfab.com/3d-models/atlantic-mackerel-animated-and-game-ready-eca6071c26fc4013b8c94a3f37a434c7" target="_blank" rel="noopener">“Atlantic Mackerel (Animated and Game-ready)”</a> by 1shxxn <span class="lic">CC BY 4.0</span></li>
           <li>Rhino: <a href="https://sketchfab.com/3d-models/rhino-animation-walk-a915d9179fe6422b9d669a3a0d726b8e" target="_blank" rel="noopener">“Rhino Animation Walk”</a> by GremorySaiyan <span class="lic">CC BY 4.0</span></li>
+          <li>Japanese toad (<i>Bufo japonicus</i>) with katydid: <a href="https://sketchfab.com/3d-models/cc0-japanese-toad-62afb780965f48b9be897e07294480eb" target="_blank" rel="noopener">“CC0 Japanese Toad”</a> by ffish.asia / floraZia.com <span class="lic">CC0</span></li>
+        </ul>
+        <h3>Sounds</h3>
+        <ul>
+          <li>Night meadow, countryside, wind in grass, splashes: <a href="https://bigsoundbank.com/" target="_blank" rel="noopener">BigSoundBank</a> (Joseph Sardin) <span class="lic">CC0</span></li>
+          <li>Sea waves: <a href="https://bigsoundbank.com/sound-0266-sea-waves.html" target="_blank" rel="noopener">BigSoundBank</a> (Denis Chardonnet) <span class="lic">CC0</span></li>
+          <li>Toad croak: <a href="https://pixabay.com/sound-effects/nature-frog-sound-568831/" target="_blank" rel="noopener">“Frog Sound”</a> by u_dtw7a5lpx2 <span class="lic">Pixabay Content License</span></li>
+          <li>Rhino: <a href="https://pixabay.com/sound-effects/indian-rhinoceros-rhinoceros-unicornis-95946/" target="_blank" rel="noopener">“Indian rhinoceros (Rhinoceros unicornis)”</a> by Breviceps (Freesound) <span class="lic">Pixabay Content License</span></li>
         </ul>
         <h3>Libraries</h3>
         <ul>
@@ -395,6 +486,8 @@
       import { WaterMesh } from "three/addons/objects/WaterMesh.js";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
       import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
+      import { LineSegments2 } from "three/addons/lines/webgpu/LineSegments2.js";
+      import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
       import {
         Fn,
         float,
@@ -1562,7 +1655,7 @@
       };
       function lookAtBody(h) {
         sky.yaw = -h.azimuth * D2R;
-        sky.pitch = Math.max(-0.3, Math.min(1.55, h.altitude * D2R));
+        sky.pitch = Math.max(-1.4, Math.min(1.55, h.altitude * D2R));
       }
       skyEl.markSun.addEventListener("click", () => sky.sunH && lookAtBody(sky.sunH));
       skyEl.markMoon.addEventListener("click", () => sky.moonH && lookAtBody(sky.moonH));
@@ -1649,9 +1742,10 @@
         sm.rayleigh.value = 1.0;
         sm.mieCoefficient.value = 0.0006; // слабое рассеяние вокруг Солнца — без белого пятна
         sm.mieDirectionalG.value = 0.95; // компактнее свечение вокруг Солнца, чтобы не размывало диск
-        sm.cloudCoverage.value = 0.0;
-        sm.cloudDensity.value = 0.4;
-        sm.cloudElevation.value = 0.5;
+        sm.cloudCoverage.value = 0.0; // задаётся по высокой облачности Open-Meteo
+        sm.cloudDensity.value = 0.22;
+        sm.cloudElevation.value = 0.1; // высокий ярус: пелена кажется дальше и выше
+        sm.cloudScale.value = 0.00035; // мельче и тоньше структура, ближе к перистым
         // ночная тёмно-синяя подсветка неба: у горизонта светлее, к зениту темнее
         sky.nightU = uniform(0);
         const viewDir = normalize(positionWorld.sub(cameraPosition));
@@ -1922,6 +2016,10 @@
               const obj = new THREE.Group();
               obj.add(inner);
               scene.add(obj);
+              const proxy = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.7, sp.length * sizeK), new THREE.MeshBasicMaterial({ visible: false }));
+              proxy.position.y = 0.85;
+              proxy.userData.kind = sp.key;
+              obj.add(proxy);
               const mixer = new THREE.AnimationMixer(model);
               const action = mixer.clipAction(gltf.animations[0]);
               action.play();
@@ -1941,8 +2039,62 @@
             }
             console.log("[diag] стадо:", sp.key, "x" + sp.count, "размер модели", size.toArray().map((v) => +v.toFixed(2)), "анимация", gltf.animations[0].name, gltf.animations[0].duration.toFixed(2) + " с");
           }
-          sky.grassField.set({ interactors: sky.herd.map((h) => ({ object: h.obj, radius: h.sp.radius * 0.8 })), interactionStrength: 1.6 });
+          updateGrassInteractors();
         })();
+
+        // --- жабы: «CC0 Japanese Toad» (Bufo japonicus), ffish.asia / floraZia.com, Sketchfab, CC0.
+        // Анимация автора 26 с — охота: кузнечик подходит, бросок на 7.1 с, кузнечик исчезает (съеден) на 7.46 с, глотание.
+        // Жабы сидят у наблюдателя неподвижно, каждая в своём ритме; носороги их обходят.
+        sky.toads = [];
+        new GLTFLoader().load("assets/japanese_toad.glb", (gltf) => {
+          const TOAD_COUNT = 14; // 14 жаб + 2 носорога = 16 — предел библиотеки травы на раздвигание
+          const TOAD_SCALE = 2.0; // ×2 к настоящим ~21 см, иначе не разглядеть
+          const clip = gltf.animations[0];
+          sky.toadClip = clip;
+          sky.toadScale = TOAD_SCALE;
+          sky.toadRM = computeRootMotion(gltf.scene, clip); // ползание: перемещение тела по опорным лапам
+          const rnd = (a, b) => a + Math.random() * (b - a);
+          const placed = [];
+          for (let n = 0, tries = 0; n < TOAD_COUNT && tries < 2000; tries++) {
+            const ang = rnd(0, Math.PI * 2), r = rnd(2.2, 6.0);
+            const x = Math.sin(ang) * r, z = -Math.cos(ang) * r;
+            if (placed.some((q) => Math.hypot(q.x - x, q.z - z) < 0.9)) continue; // не ближе 0.9 м друг к другу
+            placed.push({ x, z });
+            const model = SkeletonUtils.clone(gltf.scene);
+            model.traverse((o) => o.isMesh && (o.frustumCulled = false));
+            const obj = new THREE.Group();
+            obj.add(model);
+            obj.scale.setScalar(TOAD_SCALE);
+            obj.position.set(x, -2, z);
+            // морда модели смотрит в −x (кузнечик приходит с −x): поворачиваем мордой к наблюдателю, с разбросом
+            const dx = -x, dz = -z;
+            obj.rotation.y = Math.atan2(dz, -dx) + rnd(-1.0, 1.0);
+            // невидимая сфера для клика и наведения (скелетную сетку проверять дорого)
+            const proxy = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
+            proxy.position.y = 0.06;
+            proxy.userData.kind = "toad";
+            obj.add(proxy);
+            scene.add(obj);
+            const mixer = new THREE.AnimationMixer(model);
+            const action = mixer.clipAction(clip);
+            action.play();
+            action.time = rnd(0, clip.duration); // каждая охотится в своём ритме
+            action.timeScale = rnd(0.9, 1.1);
+            sky.toads.push({
+              obj, mixer, action, proxy,
+              radius: 0.22 * TOAD_SCALE,
+              pos: new THREE.Vector2(x, z),
+              nextHop: performance.now() + rnd(3000, 15000),
+              hop: null,
+              lastT: action.time % clip.duration,
+              crawlYaw: null, // курс ползания, выбранный на этот цикл
+              turnFrom: 0,
+            });
+            n++;
+          }
+          updateGrassInteractors();
+          console.log("[diag] жабы:", sky.toads.length, "анимация", clip.name, clip.duration.toFixed(2) + " с");
+        });
 
         // стороны света
         for (const [txt, az] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) {
@@ -1964,6 +2116,24 @@
         ]);
         cel.add(makeStars(stars.features));
         cel.add(makeConstellationLines(lines.features));
+        // границы созвездий МАС и английские названия (d3-celestial, BSD-3) — подпись при наведении
+        Promise.all([
+          fetch("textures/sky/constellations.bounds.json").then((x) => x.json()),
+          fetch("textures/sky/constellations.json").then((x) => x.json()),
+        ])
+          .then(([b, n]) => {
+            // у Змеи (Ser) две части с одним кодом — справка общая, название по части
+            const meta = {};
+            for (const f of n.features) (meta[f.id] ||= []).push(f.properties);
+            const used = {};
+            sky.constBounds = b.features.map((f) => {
+              const k = (used[f.id] = (used[f.id] || 0) + 1) - 1;
+              const pr = (meta[f.id] || [])[k] || (meta[f.id] || [])[0] || {};
+              return { id: f.id, name: pr.name || f.id, en: pr.en || "", gen: pr.gen || "", ring: f.geometry.coordinates[0] };
+            });
+            sky.constLines = new Map(lines.features.map((f) => [f.id, f.geometry.coordinates]));
+          })
+          .catch((e) => console.warn("[diag] границы созвездий не загрузились:", e));
 
         // Солнце: чёткий диск с потемнением к краю (рисуется непрозрачно, не «выгорает») + слабый ореол
         {
@@ -2028,25 +2198,274 @@
         sky.moon.renderOrder = 0; // раньше звёзд и линий, чтобы закрыть их глубиной
         scene.add(sky.moon);
 
-        {
-          const [w, h] = SKY_SIZE;
+        // размер окна неба: 600×360, на узком экране — по ширине экрана с теми же пропорциями
+        const layoutSky = () => {
+          const w = Math.min(SKY_SIZE[0], innerWidth - 16);
+          const h = Math.round((w * SKY_SIZE[1]) / SKY_SIZE[0]);
           skyEl.panel.style.width = `${w}px`;
           skyEl.canvas.style.width = `${w}px`;
           skyEl.canvas.style.height = `${h}px`;
           sky.renderer.setSize(w, h, false);
-        }
+          sky.camera.aspect = w / h;
+          sky.camera.updateProjectionMatrix();
+        };
+        layoutSky();
+        addEventListener("resize", layoutSky);
 
         // обзор мышью
         let drag = null;
+        // щипок двумя пальцами — масштаб (поле зрения), как колесо мыши
+        const touches = new Map();
+        let pinch = null;
+        skyEl.canvas.addEventListener("pointerdown", (e) => {
+          if (e.pointerType !== "touch") return;
+          touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (touches.size === 2) {
+            const [a, b] = [...touches.values()];
+            pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), fov: sky.fov };
+            drag = null;
+          }
+        });
+        skyEl.canvas.addEventListener("pointermove", (e) => {
+          if (!touches.has(e.pointerId)) return;
+          touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pinch && touches.size === 2) {
+            const [a, b] = [...touches.values()];
+            const d = Math.hypot(a.x - b.x, a.y - b.y);
+            if (d > 10) sky.fov = Math.max(15, Math.min(100, (pinch.fov * pinch.d) / d));
+          }
+        });
+        const endTouch = (e) => {
+          touches.delete(e.pointerId);
+          if (touches.size < 2) pinch = null;
+        };
+        skyEl.canvas.addEventListener("pointerup", endTouch);
+        skyEl.canvas.addEventListener("pointercancel", endTouch);
         skyEl.canvas.addEventListener("pointerdown", (e) => {
           drag = { x: e.clientX, y: e.clientY, yaw: sky.yaw, pitch: sky.pitch };
           skyEl.canvas.setPointerCapture(e.pointerId);
         });
+        // звук: включается только по нажатию (браузеры не дают включать звук сами)
+        const sndBtn = document.getElementById("skySound");
+        sndBtn.addEventListener("click", async () => {
+          SND.on = !SND.on;
+          sndBtn.textContent = SND.on ? "🔊 Sound" : "🔇 Sound";
+          if (SND.on) await soundStart();
+        });
+        // созвездие под курсором: неоновая подсветка линий, подпись, курсор-рука; клик — краткая справка
+        const constTip = document.createElement("div");
+        constTip.id = "constTip";
+        constTip.hidden = true;
+        document.body.appendChild(constTip);
+        const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2(), _m3 = new THREE.Matrix3();
+        const norm180 = (a) => ((((a + 180) % 360) + 360) % 360) - 180;
+        const inPoly = (pts, x, y) => {
+          let inside = false;
+          for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+            const [xi, yi] = pts[i], [xj, yj] = pts[j];
+            if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+          }
+          return inside;
+        };
+        // точка (ra, dec) внутри границы МАС: долготы разворачиваются относительно точки (переход через 0h/24h),
+        // кольцо вокруг полюса мира замыкается через полюс (проверено на Полярной, сигме Октанта, альфе Андромеды)
+        const inRing = (ring, ra, dec) => {
+          const pts = [[norm180(ring[0][0] - ra), ring[0][1]]];
+          for (let i = 1; i < ring.length; i++) pts.push([pts[i - 1][0] + norm180(ring[i][0] - ring[i - 1][0]), ring[i][1]]);
+          const sweep = pts[pts.length - 1][0] + norm180(ring[0][0] - ring[ring.length - 1][0]) - pts[0][0];
+          if (Math.abs(sweep) > 180) {
+            const pole = ring[0][1] > 0 ? 90 : -90;
+            pts.push([pts[pts.length - 1][0], pole], [pts[0][0], pole]);
+          }
+          return inPoly(pts, 0, dec) || inPoly(pts, 360, dec) || inPoly(pts, -360, dec);
+        };
+        const constAt = (e) => {
+          if (!sky.constBounds || sky.starVis.value < 0.25) return null;
+          const r = skyEl.canvas.getBoundingClientRect();
+          _ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+          _ray.setFromCamera(_ndc, sky.camera);
+          const d = _ray.ray.direction;
+          if (d.y <= 0.0) return null; // ниже горизонта
+          // мир -> небесная сфера J2000: обратный (транспонированный) поворот матрицы звёзд
+          const v = d.clone().applyMatrix3(_m3.setFromMatrix4(sky.celestial.matrix).transpose()).normalize();
+          const ra = Math.atan2(v.y, v.x) / D2R, dec = Math.asin(Math.max(-1, Math.min(1, v.z))) / D2R;
+          return sky.constBounds.find((c) => inRing(c.ring, ra, dec)) || null;
+        };
+
+        // неоновая подсветка: три слоя толстых линий (ореол, полуореол, сердцевина) на небесной сфере
+        const NEON = new THREE.Color("#ff4fe0");
+        const glowLayers = [
+          { width: 9, opacity: 0.22 },
+          { width: 4.5, opacity: 0.45 },
+          { width: 2, opacity: 1.0, core: true },
+        ].map(({ width, opacity, core }) => {
+          const m = new THREE.Line2NodeMaterial({
+            color: core ? new THREE.Color("#ffd6f7") : NEON,
+            linewidth: width,
+            transparent: true,
+            opacity,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            fog: false,
+          });
+          const obj = new LineSegments2(new LineSegmentsGeometry(), m);
+          obj.frustumCulled = false;
+          obj.renderOrder = 2;
+          obj.visible = false;
+          sky.celestial.add(obj);
+          return obj;
+        });
+        const toV = ([raDeg, decDeg]) => {
+          const ra = raDeg * D2R, dec = decDeg * D2R, rr = SKY_R * 0.98;
+          return [Math.cos(dec) * Math.cos(ra) * rr, Math.cos(dec) * Math.sin(ra) * rr, Math.sin(dec) * rr];
+        };
+        let hoverId = null;
+        const setHighlight = (id) => {
+          if (id === hoverId) return;
+          hoverId = id;
+          const coords = id && sky.constLines ? sky.constLines.get(id) : null;
+          if (!coords) {
+            for (const o of glowLayers) o.visible = false;
+            return;
+          }
+          const pts = [];
+          for (const line of coords) for (let i = 0; i < line.length - 1; i++) pts.push(...toV(line[i]), ...toV(line[i + 1]));
+          for (const o of glowLayers) {
+            o.geometry.dispose();
+            o.geometry = new LineSegmentsGeometry().setPositions(pts);
+            o.visible = true;
+          }
+        };
+        let hovered = null;
+        // животное под курсором: проверка по невидимым объёмам носорогов и жаб
+        const animalAt = (e) => {
+          const r = skyEl.canvas.getBoundingClientRect();
+          _ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+          _ray.setFromCamera(_ndc, sky.camera);
+          const proxies = [];
+          for (const h of sky.herd || []) if (h.obj.visible) h.obj.traverse((o) => o.userData.kind && proxies.push(o));
+          for (const t of sky.toads || []) if (t.obj.visible) proxies.push(t.proxy);
+          const hit = _ray.intersectObjects(proxies, false)[0];
+          return hit ? { kind: hit.object.userData.kind, obj: hit.object } : null;
+        };
+        const updateHover = (e) => {
+          if (!drag && animalAt(e)) {
+            setHighlight(null);
+            constTip.hidden = true;
+            skyEl.canvas.style.cursor = "pointer";
+            return;
+          }
+          hovered = drag ? null : constAt(e);
+          setHighlight(hovered ? hovered.id : null);
+          skyEl.canvas.style.cursor = hovered ? "pointer" : "";
+          if (!hovered) return (constTip.hidden = true);
+          constTip.innerHTML = "";
+          constTip.append(hovered.name);
+          if (hovered.en) {
+            const sm = document.createElement("small");
+            sm.textContent = hovered.en;
+            constTip.append(sm);
+          }
+          constTip.style.left = `${e.clientX + 14}px`;
+          constTip.style.top = `${e.clientY + 12}px`;
+          constTip.hidden = false;
+        };
+        const clearHover = () => {
+          hovered = null;
+          setHighlight(null);
+          skyEl.canvas.style.cursor = "";
+          constTip.hidden = true;
+        };
+        skyEl.canvas.addEventListener("pointermove", updateHover);
+        skyEl.canvas.addEventListener("pointerleave", clearHover);
+
+        // справка по клику: данные d3-celestial + краткое описание из Википедии (запрашивается только название)
+        const info = document.createElement("div");
+        info.id = "constInfo";
+        info.hidden = true;
+        document.body.appendChild(info);
+        const closeInfo = () => (info.hidden = true);
+        addEventListener("keydown", (e) => e.key === "Escape" && closeInfo());
+        addEventListener("pointerdown", (e) => {
+          if (!info.hidden && !info.contains(e.target) && e.target !== skyEl.canvas) closeInfo();
+        });
+        const wikiCache = new Map();
+        const wikiSummary = async (latin) => {
+          const base = latin.replace(/ (Caput|Cauda)$/, "");
+          if (wikiCache.has(base)) return wikiCache.get(base);
+          const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(base.replace(/ /g, "_") + "_(constellation)")}`;
+          const pr = fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+          wikiCache.set(base, pr);
+          return pr;
+        };
+        const openInfo = (c, x, y) => {
+          info.innerHTML = "";
+          const close = document.createElement("button");
+          close.id = "constInfoClose";
+          close.type = "button";
+          close.setAttribute("aria-label", "Close");
+          close.textContent = "×";
+          close.addEventListener("click", closeInfo);
+          const h = document.createElement("h3");
+          h.textContent = c.name;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = [c.en, c.gen && `genitive: ${c.gen}`, `IAU abbreviation: ${c.id}`].filter(Boolean).join(" · ");
+          const body = document.createElement("div");
+          body.textContent = "Loading description…";
+          info.append(close, h, meta, body);
+          // окно — рядом с местом клика, в пределах экрана
+          info.hidden = false;
+          const w = info.offsetWidth, hh = info.offsetHeight;
+          info.style.left = `${Math.max(12, Math.min(innerWidth - w - 12, x - w / 2))}px`;
+          info.style.top = `${Math.max(12, Math.min(innerHeight - hh - 12, y - hh - 18))}px`;
+          wikiSummary(c.name)
+            .then((j) => {
+              body.innerHTML = "";
+              if (j.thumbnail?.source) {
+                const img = document.createElement("img");
+                img.src = j.thumbnail.source;
+                img.alt = j.title || c.name;
+                body.append(img);
+              }
+              const pText = document.createElement("div");
+              pText.textContent = j.extract || "No description available.";
+              const src = document.createElement("div");
+              src.className = "src";
+              const a = document.createElement("a");
+              a.href = j.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(c.name)}`;
+              a.target = "_blank";
+              a.rel = "noopener";
+              a.textContent = "Read more on Wikipedia";
+              src.append(a, " · text CC BY-SA 4.0");
+              body.append(pText, src);
+              const hh2 = info.offsetHeight;
+              info.style.top = `${Math.max(12, Math.min(innerHeight - hh2 - 12, y - hh2 - 18))}px`;
+            })
+            .catch(() => (body.textContent = "Description is unavailable right now."));
+        };
+        // клик (без перетаскивания) по созвездию — справка
+        let downAt = null;
+        skyEl.canvas.addEventListener("pointerdown", (e) => (downAt = { x: e.clientX, y: e.clientY }));
+        skyEl.canvas.addEventListener("pointerup", (e) => {
+          const moved = downAt ? Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) : 99;
+          downAt = null;
+          if (moved > 5) return;
+          // клик по животному — его голос (даже при выключенном фоне: это явное действие)
+          const a = animalAt(e);
+          if (a) {
+            soundStart().then(() => soundAt(a.kind === "toad" ? "croak" : "rhino", a.obj, a.kind === "toad" ? 1.6 : 1.4, 0.95 + Math.random() * 0.1, true));
+            return;
+          }
+          if (e.pointerType === "touch") updateHover(e); // наведения на телефоне нет — подсвечиваем по тапу
+          const c = constAt(e);
+          if (c) openInfo(c, e.clientX, e.clientY);
+        });
         skyEl.canvas.addEventListener("pointermove", (e) => {
-          if (!drag) return;
+          if (!drag || pinch) return;
           const k = (sky.fov * D2R) / skyEl.canvas.clientHeight;
           sky.yaw = drag.yaw + (e.clientX - drag.x) * k;
-          sky.pitch = Math.max(-0.3, Math.min(1.55, drag.pitch + (e.clientY - drag.y) * k));
+          sky.pitch = Math.max(-1.4, Math.min(1.55, drag.pitch + (e.clientY - drag.y) * k));
         });
         skyEl.canvas.addEventListener("pointerup", () => (drag = null));
         skyEl.canvas.addEventListener(
@@ -2060,6 +2479,8 @@
         skyEl.close.addEventListener("click", () => {
           sky.open = false;
           skyEl.panel.hidden = true;
+          document.getElementById("constTip")?.setAttribute("hidden", "");
+          document.getElementById("constInfo")?.setAttribute("hidden", "");
           if (sky.marker) sky.marker.visible = false;
         });
       }
@@ -2151,11 +2572,17 @@
       async function fetchWeather() {
         const url =
           `https://api.open-meteo.com/v1/forecast?latitude=${sky.lat.toFixed(3)}&longitude=${sky.lon.toFixed(3)}` +
-          `&current=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high&timezone=auto`;
+          `&current=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=auto`;
         try {
           const j = await (await fetch(url)).json();
           sky.cloud = j.current;
           sky.tz = j.timezone || "UTC";
+          // настоящий ветер в точке -> трава: сила по скорости (м/с), направление — куда дует (откуда + 180°)
+          if (sky.grassField && j.current.wind_speed_10m != null) {
+            const ms = j.current.wind_speed_10m;
+            const v = horDir(0, (j.current.wind_direction_10m + 180) % 360, new THREE.Vector3());
+            sky.grassField.set({ wind: { direction: [v.x, v.z], strength: 0.12 + Math.min(ms / 12, 1) * 0.9 } });
+          }
           sky.lastWeather = performance.now();
         } catch (e) {
           console.warn("[diag] Open-Meteo не ответил:", e);
@@ -2201,6 +2628,147 @@
         fetchWeather();
       }
 
+      // ---------- звук окна неба (Web Audio): фон по месту и времени + отдельные звуки с панорамой ----------
+      // записи — BigSoundBank (CC0): #1880, #0097, #0908 (J. Sardin), #0266 (D. Chardonnet), #1529, #1531, #0819
+      const SOUND_FILES = {
+        night: "assets/sounds/night_meadow.mp3",
+        day: "assets/sounds/day_countryside.mp3",
+        wind: "assets/sounds/wind_grass.mp3",
+        sea: "assets/sounds/sea_waves.mp3",
+        splashOut: "assets/sounds/splash_out.mp3",
+        splashIn: "assets/sounds/splash_in.mp3",
+        // «Frog Sound», u_dtw7a5lpx2, Pixabay Content License — разрезан на 8 одиночных «ква»
+        croak1: "assets/sounds/croak_1.mp3",
+        croak2: "assets/sounds/croak_2.mp3",
+        croak3: "assets/sounds/croak_3.mp3",
+        croak4: "assets/sounds/croak_4.mp3",
+        croak5: "assets/sounds/croak_5.mp3",
+        croak6: "assets/sounds/croak_6.mp3",
+        croak7: "assets/sounds/croak_7.mp3",
+        croak8: "assets/sounds/croak_8.mp3",
+        rhino: "assets/sounds/rhino.mp3", // «Indian rhinoceros», Breviceps (Freesound), Pixabay Content License
+      };
+      const SND = { ctx: null, master: null, buf: {}, beds: {}, on: true, nextFrog: 0, nextRhino: 0, voices: new Set() };
+      // браузер разрешает звук только после действия пользователя: запускаем при первом клике/касании на странице
+      // (окно неба и так открывается кликом по Земле)
+      const unlockSound = () => {
+        if (SND.on) soundStart();
+        removeEventListener("pointerdown", unlockSound, true);
+        removeEventListener("keydown", unlockSound, true);
+      };
+      addEventListener("pointerdown", unlockSound, true);
+      addEventListener("keydown", unlockSound, true);
+      async function soundStart() {
+        if (!SND.ctx) {
+          SND.ctx = new AudioContext();
+          SND.master = SND.ctx.createGain();
+          SND.master.gain.value = 0;
+          SND.master.connect(SND.ctx.destination);
+          await Promise.all(
+            Object.entries(SOUND_FILES).map(async ([k, url]) => {
+              try {
+                SND.buf[k] = await SND.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
+              } catch (e) {
+                console.warn("[diag] звук не загрузился:", url, e);
+              }
+            }),
+          );
+          // фоновые петли: играют всегда, громкость задаётся каждый кадр
+          for (const k of ["night", "day", "wind", "sea"]) {
+            if (!SND.buf[k]) continue;
+            const src = SND.ctx.createBufferSource();
+            src.buffer = SND.buf[k];
+            src.loop = true;
+            const g = SND.ctx.createGain();
+            g.gain.value = 0;
+            src.connect(g).connect(SND.master);
+            src.start(0, Math.random() * SND.buf[k].duration); // со случайного места — петли не совпадают
+            SND.beds[k] = g;
+          }
+        }
+        await SND.ctx.resume();
+      }
+      // разовый звук в мире окна неба: 3D-источник (PannerNode, HRTF). Слушатель — камера (обновляется каждый кадр),
+      // источник — точка или объект (жаба, носорог): поворот камеры и движение животного сразу меняют звучание.
+      // force — играть и при выключенном фоне (клик по животному — явное действие)
+      function soundAt(name, where, gain = 1, rate = 1, force = false) {
+        if (name === "croak") name = "croak" + (1 + ((Math.random() * 8) | 0)); // одно случайное «ква» из восьми
+        if ((!SND.on && !force) || !SND.ctx || !SND.buf[name] || !sky.open) return;
+        const ctx = SND.ctx;
+        const src = ctx.createBufferSource();
+        src.buffer = SND.buf[name];
+        src.playbackRate.value = rate;
+        const g = ctx.createGain();
+        g.gain.value = gain;
+        const pn = new PannerNode(ctx, { panningModel: "HRTF", distanceModel: "inverse", refDistance: 3, rolloffFactor: 1, maxDistance: 200 });
+        const voice = { pn, obj: where.isObject3D ? where : null, pos: where.isObject3D ? null : where.clone() };
+        setPannerPos(voice);
+        src.connect(g).connect(pn).connect(SND.on ? SND.master : ctx.destination);
+        SND.voices.add(voice);
+        src.onended = () => SND.voices.delete(voice);
+        src.start();
+      }
+      const _vp = new THREE.Vector3(), _vf = new THREE.Vector3();
+      function setPannerPos(v) {
+        const p = v.obj ? v.obj.getWorldPosition(_vp) : v.pos;
+        const t = SND.ctx.currentTime;
+        v.pn.positionX.setValueAtTime(p.x, t);
+        v.pn.positionY.setValueAtTime(p.y, t);
+        v.pn.positionZ.setValueAtTime(p.z, t);
+      }
+      // слушатель = камера окна неба: положение и направление взгляда
+      function updateListener() {
+        const L = SND.ctx.listener, t = SND.ctx.currentTime, cam = sky.camera;
+        cam.getWorldPosition(_vp);
+        cam.getWorldDirection(_vf);
+        const up = cam.up;
+        if (L.positionX) {
+          L.positionX.setValueAtTime(_vp.x, t);
+          L.positionY.setValueAtTime(_vp.y, t);
+          L.positionZ.setValueAtTime(_vp.z, t);
+          L.forwardX.setValueAtTime(_vf.x, t);
+          L.forwardY.setValueAtTime(_vf.y, t);
+          L.forwardZ.setValueAtTime(_vf.z, t);
+          L.upX.setValueAtTime(up.x, t);
+          L.upY.setValueAtTime(up.y, t);
+          L.upZ.setValueAtTime(up.z, t);
+        } else {
+          L.setPosition(_vp.x, _vp.y, _vp.z); // старый интерфейс (некоторые версии Safari)
+          L.setOrientation(_vf.x, _vf.y, _vf.z, up.x, up.y, up.z);
+        }
+      }
+
+      // каждый кадр: фон по реальным условиям (день/ночь, суша/вода, скорость ветра)
+      function soundUpdate(day, night) {
+        if (!SND.ctx) return;
+        updateListener();
+        for (const v of SND.voices) if (v.obj) setPannerPos(v); // звук следует за животным
+        const t = SND.ctx.currentTime;
+        SND.master.gain.setTargetAtTime(SND.on && sky.open ? 0.9 : 0, t, 0.4);
+        const land = !sky.isWater;
+        const ws = sky.cloud?.wind_speed_10m ?? 3; // м/с
+        const target = {
+          day: land ? 0.5 * day : 0,
+          night: land ? 0.6 * night : 0,
+          sea: land ? 0 : 0.7,
+          wind: (0.1 + Math.min(ws / 15, 1) * 0.45) * (land ? 1 : 0.7),
+        };
+        for (const [k, g] of Object.entries(SND.beds)) g.gain.setTargetAtTime(target[k], t, 1.5);
+        // кваканье в сумерках и ночью на суше — от случайной жабы, с её места
+        const now = performance.now();
+        if (SND.on && land && night > 0.3 && sky.toads?.length && now > SND.nextFrog) {
+          SND.nextFrog = now + 5000 + Math.random() * 10000;
+          const t = sky.toads[(Math.random() * sky.toads.length) | 0];
+          soundAt("croak", t.obj, 0.9, 0.9 + Math.random() * 0.2);
+        }
+        // носороги изредка подают голос
+        if (SND.on && land && sky.herd?.length && now > SND.nextRhino) {
+          SND.nextRhino = now + 35000 + Math.random() * 50000;
+          const h = sky.herd[(Math.random() * sky.herd.length) | 0];
+          soundAt("rhino", h.obj, 1.2, 0.95 + Math.random() * 0.1);
+        }
+      }
+
       // рыбка: выпрыгивает по дуге в стороне взгляда и ныряет обратно
       const FISH_FLIP = 0; // ориентация модели скумбрии как есть — головой вперёд (проверено глазами)
       function updateFish() {
@@ -2225,10 +2793,14 @@
           F.dir = Math.random() * Math.PI * 2;
           F.h = 1.2 + Math.random() * 0.9;
           F.len = 2.4 + Math.random() * 1.6;
+          // всплеск при выходе из воды — в начале дуги
+          soundAt("splashOut", new THREE.Vector3(F.cx - Math.cos(F.dir) * F.len * 0.5, -2.25, F.cz - Math.sin(F.dir) * F.len * 0.5), 1.0);
         }
         if (F.t0 < 0) return;
         const k = (now - F.t0) / F.dur;
         if (k >= 1) {
+          // всплеск при входе в воду — в конце дуги
+          soundAt("splashIn", new THREE.Vector3(F.cx + Math.cos(F.dir) * F.len * 0.5, -2.25, F.cz + Math.sin(F.dir) * F.len * 0.5), 1.1);
           F.t0 = -1;
           F.obj.visible = false;
           const mean = CREATURES.fishEvery * 1000;
@@ -2242,6 +2814,173 @@
         F.obj.rotation.set(0, -F.dir, Math.atan2(-2 * F.h * sArc, half), "YZX");
         F.mixer.update(fdt); // тело и хвост — анимация плавания из модели
         F.obj.visible = true;
+      }
+
+      // трава расступается вокруг носорогов и жаб (библиотека — не больше 16 объектов)
+      function updateGrassInteractors() {
+        if (!sky.grassField) return;
+        const list = [
+          ...(sky.herd || []).map((h) => ({ object: h.obj, radius: h.sp.radius * 0.8 })),
+          ...(sky.toads || []).map((t) => ({ object: t.obj, radius: 0.35 })),
+        ].slice(0, 16);
+        sky.grassField.set({ interactors: list, interactionStrength: 1.6 });
+      }
+      // Перемещение тела жабы из её анимации: лапа на земле (в нижней точке своего хода), смещающаяся назад
+      // относительно тела, значит тело в этот момент идёт вперёд на столько же. Шаг 1/30 с; результат — кривая
+      // смещения (в осях модели) от начала цикла. Для этой модели: ползание 16–24.5 с, ~1.01 м за цикл, в −x (вперёд).
+      function computeRootMotion(src, clip) {
+        const sc = SkeletonUtils.clone(src);
+        const mx = new THREE.AnimationMixer(sc);
+        const ac = mx.clipAction(clip);
+        ac.play();
+        const names = ["foot_L", "leg3_R001", "hand_L", "hand_R"]; // three.js убирает точки из имён: leg3_R.001 -> leg3_R001
+        const bones = names.map((n) => sc.getObjectByName(n));
+        if (bones.some((x) => !x)) {
+          console.warn("[diag] кости лап жабы не найдены — ползание без перемещения");
+          return null;
+        }
+        const FPS = 30, N = Math.floor(clip.duration * FPS);
+        const pts = [];
+        for (let k = 0; k <= N; k++) {
+          ac.time = k / FPS;
+          mx.update(0);
+          sc.updateMatrixWorld(true);
+          pts.push(bones.map((x) => x.getWorldPosition(new THREE.Vector3())));
+        }
+        const minY = names.map((_, i) => Math.min(...pts.map((q) => q[i].y)));
+        const xs = new Float32Array(N + 1), zs = new Float32Array(N + 1);
+        for (let k = 0; k < N; k++) {
+          let sx = 0, sz = 0, n = 0;
+          for (let i = 0; i < names.length; i++) {
+            const p0 = pts[k][i], p1 = pts[k + 1][i];
+            if (p0.y < minY[i] + 0.006 && p1.y < minY[i] + 0.006) {
+              sx -= p1.x - p0.x;
+              sz -= p1.z - p0.z;
+              n++;
+            }
+          }
+          xs[k + 1] = xs[k] + (n ? sx / n : 0);
+          zs[k + 1] = zs[k] + (n ? sz / n : 0);
+        }
+        const total = Math.hypot(xs[N], zs[N]);
+        console.log("[diag] ползание жабы: перемещение за цикл", total.toFixed(3), "м (настоящий масштаб)");
+        return { fps: FPS, n: N, xs, zs, total };
+      }
+      const rmAt = (rm, t) => {
+        const f = Math.min(Math.max(t * rm.fps, 0), rm.n);
+        const i = Math.min(Math.floor(f), rm.n - 1), u = f - i;
+        return [rm.xs[i] + (rm.xs[i + 1] - rm.xs[i]) * u, rm.zs[i] + (rm.zs[i + 1] - rm.zs[i]) * u];
+      };
+      const CRAWL_FROM = 15.0, CRAWL_TO = 25.3, TURN_START = 15.0, TURN_END = 16.0, HUNT_FROM = 6.5, HUNT_TO = 10.5;
+      // свободен ли отрезок пути жабы: другие жабы (и их цели) не ближе 0.9 м, носороги в стороне, кольцо 1.8–6.5 м
+      const pathFree = (t, from, to) => {
+        const r = to.length();
+        if (r < 1.8 || r > 6.5) return false;
+        const seg = to.clone().sub(from), L2 = seg.lengthSq() || 1;
+        const distToSeg = (q) => {
+          const k = Math.max(0, Math.min(1, q.clone().sub(from).dot(seg) / L2));
+          return q.distanceTo(from.clone().addScaledVector(seg, k));
+        };
+        for (const o of sky.toads) {
+          if (o === t) continue;
+          if (distToSeg(o.pos) < 0.9) return false;
+          if (o.hop && distToSeg(o.hop.to) < 0.9) return false;
+          if (o.crawlTo && distToSeg(o.crawlTo) < 0.9) return false;
+        }
+        for (const h of sky.herd || []) if (distToSeg(h.pos) < h.radius + t.radius + 1.0) return false;
+        return true;
+      };
+      const yawDir = (yaw) => new THREE.Vector2(-Math.cos(yaw), Math.sin(yaw)); // морда модели — в −x
+      // жабы: охота по анимации, ползание с перемещением по кривой лап, прыжки в свободные моменты; только на суше
+      let toadLast = performance.now();
+      function updateToads() {
+        if (!sky.toads?.length) return;
+        const now = performance.now();
+        const dt = Math.min((now - toadLast) / 1000, 0.1);
+        toadLast = now;
+        const rnd = (a, b) => a + Math.random() * (b - a);
+        const rm = sky.toadRM, dur = sky.toadClip.duration, S = sky.toadScale;
+        for (const t of sky.toads) {
+          t.obj.visible = !sky.isWater;
+          if (!t.obj.visible) continue;
+          t.mixer.update(dt);
+          const ct = t.action.time % dur;
+          const pt = t.lastT;
+          t.lastT = ct;
+          if (ct < pt) t.crawlYaw = null; // новый цикл — курс ползания выбирается заново
+
+          // --- прыжок в полёте ---
+          if (t.hop) {
+            const k = Math.min((now - t.hop.t0) / t.hop.dur, 1);
+            t.pos.lerpVectors(t.hop.from, t.hop.to, k);
+            t.obj.position.set(t.pos.x, -2 + t.hop.h * 4 * k * (1 - k), t.pos.y);
+            if (k >= 1) {
+              t.hop = null;
+              t.nextHop = now + rnd(8000, 20000);
+            }
+            continue;
+          }
+
+          // --- выбор курса и плавный разворот перед ползанием (жаба привстаёт: 15–16 с) ---
+          if (rm && ct >= TURN_START && ct < CRAWL_TO && t.crawlYaw === null) {
+            const L = rm.total * S;
+            const base = t.obj.rotation.y;
+            let best = null;
+            for (const d of [0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6, 2.3, -2.3, Math.PI]) {
+              const yaw = base + d + rnd(-0.15, 0.15);
+              const to = t.pos.clone().addScaledVector(yawDir(yaw), L);
+              if (pathFree(t, t.pos, to)) {
+                best = { yaw, to };
+                break;
+              }
+            }
+            t.crawlYaw = best ? best.yaw : base;
+            t.crawlTo = best ? best.to : null;
+            t.crawlBlocked = !best;
+            t.turnFrom = base;
+          }
+          if (t.crawlYaw !== null && ct >= TURN_START && ct < TURN_END) {
+            let d = ((t.crawlYaw - t.turnFrom + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+            const k = (ct - TURN_START) / (TURN_END - TURN_START);
+            t.obj.rotation.y = t.turnFrom + d * (k * k * (3 - 2 * k)); // плавно
+          }
+
+          // --- ползание: сдвиг тела ровно на шаг лап из анимации ---
+          if (rm && ct >= TURN_END && ct < CRAWL_TO && pt <= ct && !t.crawlBlocked) {
+            if (t.crawlYaw !== null) t.obj.rotation.y = t.crawlYaw;
+            const [x1, z1] = rmAt(rm, ct), [x0, z0] = rmAt(rm, pt);
+            const dx = (x1 - x0) * S, dz = (z1 - z0) * S, th = t.obj.rotation.y;
+            const step = new THREE.Vector2(dx * Math.cos(th) + dz * Math.sin(th), -dx * Math.sin(th) + dz * Math.cos(th));
+            const next = t.pos.clone().add(step);
+            const blocked =
+              sky.toads.some((o) => o !== t && next.distanceTo(o.pos) < 0.9 && next.distanceTo(o.pos) < t.pos.distanceTo(o.pos)) ||
+              (sky.herd || []).some((h) => next.distanceTo(h.pos) < h.radius + t.radius);
+            if (!blocked) {
+              t.pos.copy(next);
+              t.obj.position.set(t.pos.x, -2, t.pos.y);
+            }
+            continue;
+          }
+          if (ct >= CRAWL_TO) t.crawlTo = null;
+
+          // --- прыжок: только в свободные моменты (не охота и не ползание) ---
+          const busy = (ct > HUNT_FROM && ct < HUNT_TO) || (ct >= CRAWL_FROM - 1.0 && ct < CRAWL_TO);
+          if (now < t.nextHop || busy) continue;
+          const face = t.obj.rotation.y;
+          let target = null;
+          for (let i = 0; i < 24 && !target; i++) {
+            const yaw = face + rnd(-1.3, 1.3);
+            const c = t.pos.clone().addScaledVector(yawDir(yaw), rnd(0.3, 0.7) * S);
+            if (pathFree(t, t.pos, c)) target = c;
+          }
+          if (!target) {
+            t.nextHop = now + 3000;
+            continue;
+          }
+          const dir = target.clone().sub(t.pos);
+          t.obj.rotation.y = Math.atan2(dir.y, -dir.x);
+          t.hop = { t0: now, dur: rnd(350, 450), from: t.pos.clone(), to: target, h: rnd(0.12, 0.2) * S };
+        }
       }
 
       // стадо (boids): общая цель вида впереди по ходу + тяга к центру группы + выравнивание курса +
@@ -2357,6 +3096,12 @@
               }
             }
           }
+          for (const h of H)
+            for (const t of sky.toads || []) {
+              const minD = h.radius + t.radius;
+              const d = h.pos.clone().sub(t.pos), dist = d.length();
+              if (dist < minD && dist > 1e-4) h.pos.addScaledVector(d, (minD - dist) / dist);
+            }
           for (const h of H) h.obj.position.set(h.pos.x, -2, h.pos.y);
         }
       }
@@ -2448,14 +3193,22 @@
         sky.skyLightM.intensity = 0.15 + 1.0 * day; // рассеянный свет неба: теневая сторона животных не проваливается в черноту
         updateFish();
         updateHerd();
+        updateToads();
+        soundUpdate(day, sky.nightU.value);
 
-        // облачность Open-Meteo -> облака SkyMesh и ослабление звёзд и Луны
-        const cc = sky.cloud ? sky.cloud.cloud_cover / 100 : 0;
+        // облачность Open-Meteo по ярусам:
+        //   низкие + средние (до ~6 км) -> объёмные кучевые облака;
+        //   высокие (перистые, выше ~6 км) -> тонкая полупрозрачная пелена плоского слоя SkyMesh
         const low = sky.cloud ? sky.cloud.cloud_cover_low / 100 : 0;
-        sky.mesh.cloudCoverage.value = 0; // плоские облака SkyMesh выключены — вместо них объёмные
-        sky.cloudU.coverage.value = Math.min(cc * 0.85 + (cc > 0.02 ? 0.12 : 0), 0.97);
+        const mid = sky.cloud ? sky.cloud.cloud_cover_mid / 100 : 0;
+        const high = sky.cloud ? sky.cloud.cloud_cover_high / 100 : 0;
+        const vol = 1 - (1 - low) * (1 - mid); // доля неба под низкими и средними облаками (ярусы независимы)
+        sky.cloudU.coverage.value = Math.min(vol * 0.85 + (vol > 0.02 ? 0.12 : 0), 0.97);
         sky.cloudU.absorb.value = 0.0035 + 0.003 * low;
-        sky.cloudDim.value = 1 - 0.85 * cc;
+        sky.mesh.cloudCoverage.value = high * 0.75; // перистая пелена
+        sky.mesh.cloudDensity.value = 0.22; // тонкая — небо и Солнце просвечивают
+        // звёзды и Луна: плотные облака гасят сильно, тонкие высокие — слабо
+        sky.cloudDim.value = 1 - 0.85 * vol - 0.3 * high * (1 - vol);
 
         const W = skyEl.canvas.clientWidth, H = skyEl.canvas.clientHeight;
         // настоящие угловые диаметры: Солнце 31′27″–32′32″, Луна 29.3′–34.1′ (зависят от расстояний);
@@ -2779,6 +3532,18 @@
             flying: true,
           };
           controls.minDistance = r * 1.15;
+        }
+        // двойной тап (телефон) = двойной клик: два касания за 350 мс в пределах 30 px
+        {
+          let lastTap = null;
+          renderer.domElement.addEventListener("pointerup", (e) => {
+            if (e.pointerType !== "touch") return;
+            const now = performance.now();
+            if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+              lastTap = null;
+              renderer.domElement.dispatchEvent(new MouseEvent("dblclick", { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
+            } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+          });
         }
         // Привязка камеры двойным кликом: Солнце, Луна или Земля; двойной клик в пустоту — отвязка
         renderer.domElement.addEventListener("dblclick", (e) => {
