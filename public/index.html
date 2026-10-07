@@ -75,6 +75,12 @@
         z-index: 1;
         pointer-events: none;
       }
+      #legend .note {
+        margin-top: 6px;
+        max-width: 340px;
+        color: #6f7a99;
+        font-style: italic;
+      }
       #legend b {
         color: #c9d4f0;
         font-weight: 600;
@@ -305,6 +311,8 @@
       <li><b>Click</b> Earth — sky view from that spot</li>
       <li><b>Hold</b> on Earth — real-time speed</li>
       <li><b>Parameters</b> panel — time, distance, Now, Where am I</li>
+      <li class="note">Just a page made for fun. No location data is collected or stored:
+        your position stays in your browser, and only the selected point's coordinates are sent to Open-Meteo to get its weather.</li>
     </ul>
     <div id="toast"></div>
     <div id="skyPanel" hidden>
