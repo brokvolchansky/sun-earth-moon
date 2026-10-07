@@ -408,7 +408,7 @@
     </ul>
     <div id="toast"></div>
     <div id="skyPanel" hidden>
-      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button><button class="skyBtn" id="skySound" type="button" title="Sound on / off">🔊 Sound</button></span><button id="skyClose" title="Close">×</button></div>
+      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button><button class="skyBtn" id="skySound" type="button" title="Sound on / off">🔊 Sound</button><button class="skyBtn" id="skyTorch" type="button" title="Flashlight on / off (lights up in the dark)">🔦 Torch</button></span><button id="skyClose" title="Close">×</button></div>
       <div id="skyView">
         <canvas id="skyCanvas"></canvas>
         <button class="skyMark" id="markSun" title="Turn to the Sun" hidden>☀</button>
@@ -1904,6 +1904,40 @@
         sky.skyLightM = new THREE.HemisphereLight(0xbfd8ff, 0x3a4a20, 0.6);
         scene.add(sky.sunLightM, sky.skyLightM);
 
+        // --- фонарик: луч туда, куда указывает курсор (точка экрана — луч следует и при повороте камеры);
+        // сам включается в темноте. Сила подобрана под экспозицию сцены (освещение здесь не в физических единицах):
+        // ночью на 10 м почти как днём, у ног — очень ярко, дальше слабеет (затухание с расстоянием)
+        sky.torchOn = true;
+        sky.torchNdc = new THREE.Vector2(0, -0.25);
+        sky.torchDir = new THREE.Vector3(0, -0.3, -1).normalize();
+        const TORCH_ANGLE = 0.25; // полуширина пучка, рад (~14°): яркое ядро + мягкий ореол
+        const torch = new THREE.SpotLight(0xfff4e0, 0, 120, TORCH_ANGLE, 0.6, 1.5);
+        torch.position.set(0, -0.9, 0); // фонарь строго под глазами на 0.9 м: на экране — всегда середина низа, при любом повороте
+        scene.add(torch, torch.target);
+        sky.torch = torch;
+        // видимый луч в воздухе: усечённый конус от 0.6 м (за ближней плоскостью камеры) до 40 м;
+        // яркость — по толщине луча на линии взгляда (середина плотнее, края растворяются) и по длине (к концу гаснет)
+        {
+          const S0 = 0.02, L = 40; // луч начинается в самом фонаре (до него 0.9 м — дальше ближней плоскости камеры 0.5 м)
+          const geo = new THREE.CylinderGeometry(Math.tan(TORCH_ANGLE) * S0, Math.tan(TORCH_ANGLE) * L, L - S0, 48, 1, true);
+          geo.translate(0, -(S0 + (L - S0) / 2), 0); // верх (узкий) — на расстоянии S0, низ — на L
+          geo.rotateX(-Math.PI / 2); // ось — вдоль +z (по lookAt)
+          const beamU = uniform(0);
+          const bm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false });
+          bm.colorNode = vec3(1.0, 0.96, 0.85);
+          const facing = abs(dot(normalize(normalView), normalize(positionView).negate())); // 1 — к взгляду, 0 — край
+          // вдоль луча: у фонаря первые 1.5 м плавно проявляется (без белого «острия»), к концу гаснет; в целом едва заметен
+          const along = float(1).sub(uv().y).mul(L); // расстояние от фонаря, м (uv.y = 1 у узкого конца)
+          const fadeIn = smoothstep(float(0), float(1.5), along);
+          bm.opacityNode = pow(facing, float(2.0)).mul(pow(uv().y, float(1.3))).mul(fadeIn).mul(beamU).mul(0.045);
+          const beam = new THREE.Mesh(geo, bm);
+          beam.frustumCulled = false;
+          beam.renderOrder = 4;
+          scene.add(beam);
+          sky.beam = beam;
+          sky.beamU = beamU;
+        }
+
         // --- трава: threejs-grass (AskAlice, Apache-2.0) — TSL/WebGPU, пресеты реальных видов,
         // пучки, ветер порывами, просвечивание на солнце; плоская земля на y = −2
         sky.grassField = await Grass.create({
@@ -2244,6 +2278,16 @@
         skyEl.canvas.addEventListener("pointerdown", (e) => {
           drag = { x: e.clientX, y: e.clientY, yaw: sky.yaw, pitch: sky.pitch };
           skyEl.canvas.setPointerCapture(e.pointerId);
+        });
+        // фонарик: точка экрана под курсором (и пальцем) — туда светит луч
+        skyEl.canvas.addEventListener("pointermove", (e) => {
+          const r = skyEl.canvas.getBoundingClientRect();
+          sky.torchNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        });
+        const torchBtn = document.getElementById("skyTorch");
+        torchBtn.addEventListener("click", () => {
+          sky.torchOn = !sky.torchOn;
+          torchBtn.style.opacity = sky.torchOn ? "1" : "0.45";
         });
         // звук: включается только по нажатию (браузеры не дают включать звук сами)
         const sndBtn = document.getElementById("skySound");
@@ -2891,6 +2935,25 @@
         return true;
       };
       const yawDir = (yaw) => new THREE.Vector2(-Math.cos(yaw), Math.sin(yaw)); // морда модели — в −x
+      // фонарик: направление — из точки экрана под курсором, сила — по темноте
+      const _tRay = new THREE.Raycaster();
+      function updateTorch(night) {
+        if (!sky.torch) return;
+        const k = sky.torchOn ? Math.min(Math.max((night - 0.25) / 0.45, 0), 1) : 0; // сумерки -> ночь
+        const sm = k * k * (3 - 2 * k);
+        sky.torch.intensity = 40 * sm;
+        sky.torch.visible = sky.beam.visible = sm > 0.001;
+        sky.beamU.value = sm;
+        if (!sky.torch.visible) return;
+        _tRay.setFromCamera(sky.torchNdc, sky.camera);
+        sky.torchDir.copy(_tRay.ray.direction);
+        const p = sky.torch.position;
+        sky.torch.target.position.copy(p).addScaledVector(sky.torchDir, 30);
+        sky.torch.target.updateMatrixWorld();
+        sky.beam.position.copy(p);
+        sky.beam.lookAt(p.clone().add(sky.torchDir));
+      }
+
       // жабы: охота по анимации, ползание с перемещением по кривой лап, прыжки в свободные моменты; только на суше
       let toadLast = performance.now();
       function updateToads() {
@@ -3194,6 +3257,7 @@
         updateFish();
         updateHerd();
         updateToads();
+        updateTorch(sky.nightU.value);
         soundUpdate(day, sky.nightU.value);
 
         // облачность Open-Meteo по ярусам:
