@@ -1,6 +1,6 @@
 # Deploy public/ to Cloudflare Pages on every push to master.
 # Based on Cloudflare's guide "Use Direct Upload with continuous integration".
-# Requires repository secrets CLOUDFLARE_API_TOKEN (Account → Cloudflare Pages → Edit) and CLOUDFLARE_ACCOUNT_ID.
+# Requires repository secrets CLOUDFLARE_TOKEN (Account → Cloudflare Pages → Edit) and CLOUDFLARE_ACCOUNT_ID.
 name: Deploy to Cloudflare Pages
 
 on:
@@ -23,14 +23,14 @@ jobs:
         continue-on-error: true
         uses: cloudflare/wrangler-action@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages project create sun-earth-moon --production-branch=master
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy public --project-name=sun-earth-moon --branch=master
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
