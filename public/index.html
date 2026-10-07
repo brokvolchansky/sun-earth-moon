@@ -1,0 +1,2766 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Living Sun · Earth — WebGPU + TSL</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #06061a;
+      }
+      #loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: #06061a;
+        z-index: 10;
+        font: 13px system-ui, sans-serif;
+        color: #c9d4f0;
+        transition: opacity 0.6s ease;
+      }
+      #loader.done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loaderTitle {
+        font-size: 15px;
+        letter-spacing: 0.04em;
+        color: #e6ecff;
+      }
+      #loaderTrack {
+        width: min(360px, 70vw);
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(140, 160, 210, 0.18);
+        overflow: hidden;
+      }
+      #loaderBar {
+        width: 0%;
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #ffb347, #ffe08a);
+        transition: width 0.3s ease;
+      }
+      #loaderStep {
+        min-height: 1.4em;
+        color: #8a95b5;
+        font-size: 12px;
+        text-align: center;
+        white-space: pre-wrap;
+        max-width: min(520px, 90vw);
+      }
+      #loader.error #loaderStep {
+        color: #ff9aa6;
+        font-size: 13px;
+      }
+      #loader.error #loaderTrack {
+        display: none;
+      }
+      #legend {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font: 11px/1.6 system-ui, sans-serif;
+        color: #8f9bbd;
+        z-index: 1;
+        pointer-events: none;
+      }
+      #legend b {
+        color: #c9d4f0;
+        font-weight: 600;
+      }
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 16px;
+        transform: translate(-50%, 20px);
+        opacity: 0;
+        padding: 8px 14px;
+        border-radius: 8px;
+        background: rgba(10, 14, 28, 0.9);
+        border: 1px solid rgba(140, 160, 210, 0.35);
+        font: 13px system-ui, sans-serif;
+        color: #d6def5;
+        z-index: 5;
+        pointer-events: none;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        white-space: pre-wrap;
+        max-width: min(560px, 90vw);
+      }
+      #toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+      #toast.ok {
+        border-color: rgba(123, 232, 160, 0.5);
+      }
+      #toast.err {
+        border-color: rgba(255, 123, 139, 0.6);
+        color: #ffc2c9;
+      }
+      #skyPanel {
+        position: fixed;
+        right: 12px;
+        bottom: 28px;
+        width: 600px;
+        background: #05070c;
+        border: 1px solid #2a3550;
+        border-radius: 8px;
+        overflow: hidden;
+        z-index: 2;
+        box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+      }
+      #skyHead {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        font: 12px monospace;
+        color: #cfe0ff;
+        background: #0b1220;
+      }
+      .skyBtn {
+        background: #16233d;
+        border: 1px solid #2a3550;
+        border-radius: 4px;
+        color: #cfe0ff;
+        font: 11px monospace;
+        padding: 2px 8px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .skyBtn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      #skyTitle {
+        flex: 1 1 auto;
+        min-width: 0; /* длинный заголовок переносится сам, кнопки не сжимает */
+      }
+      #skyBtns {
+        display: flex;
+        gap: 6px;
+        flex: 0 0 auto;
+        margin-left: 10px;
+        margin-right: 8px;
+      }
+      #skyClose {
+        background: none;
+        border: 0;
+        color: #cfe0ff;
+        font: 18px monospace;
+        cursor: pointer;
+      }
+      #skyCanvas {
+        width: 600px;
+        height: 360px;
+        display: block;
+        cursor: grab;
+      }
+      #skyView {
+        position: relative;
+      }
+      .skyMark {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        margin: -15px 0 0 -15px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        background: rgba(0, 0, 0, 0.55);
+        font: 18px sans-serif;
+        line-height: 26px;
+        cursor: pointer;
+        padding: 0;
+      }
+      #markSun {
+        color: #ffd27a;
+      }
+      #markMoon {
+        color: #e6ecff;
+      }
+      #skyInfo {
+        padding: 6px 10px;
+        font: 11px monospace;
+        color: #9fb3d9;
+        white-space: pre-wrap;
+      }
+      #creditsBtn {
+        position: fixed;
+        left: 10px;
+        bottom: 8px;
+        z-index: 2;
+        font: 12px monospace;
+        color: #c9d4f0;
+        background: rgba(10, 14, 28, 0.72);
+        border: 1px solid rgba(140, 160, 210, 0.35);
+        border-radius: 6px;
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+      #creditsBtn:hover {
+        border-color: rgba(180, 200, 255, 0.7);
+        color: #fff;
+      }
+      #creditsDlg {
+        width: min(720px, calc(100vw - 32px));
+        max-height: min(80vh, 760px);
+        padding: 0;
+        border: 1px solid rgba(140, 160, 210, 0.35);
+        border-radius: 10px;
+        background: rgba(10, 14, 28, 0.94);
+        color: #d6def5;
+        font: 13px/1.5 system-ui, sans-serif;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+      }
+      #creditsDlg::backdrop {
+        background: rgba(0, 0, 0, 0.5);
+      }
+      #creditsDlg header {
+        position: sticky;
+        top: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 18px;
+        background: rgba(10, 14, 28, 0.98);
+        border-bottom: 1px solid rgba(140, 160, 210, 0.2);
+      }
+      #creditsDlg h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      #creditsDlg .body {
+        padding: 6px 18px 16px;
+        overflow-y: auto;
+        max-height: calc(min(80vh, 760px) - 52px);
+      }
+      #creditsDlg h3 {
+        margin: 14px 0 4px;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #8fa3d6;
+      }
+      #creditsDlg ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+      #creditsDlg li {
+        margin: 3px 0;
+      }
+      #creditsDlg a {
+        color: #9cc4ff;
+      }
+      #creditsDlg .lic {
+        color: #8a95b5;
+        font-size: 12px;
+      }
+      #creditsClose {
+        background: none;
+        border: none;
+        color: #c9d4f0;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+          "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.webgpu.js",
+          "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.tsl.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+          "astronomy-engine": "https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/esm/astronomy.js",
+          "threejs-grass": "https://cdn.jsdelivr.net/npm/threejs-grass@0.1.0/dist/index.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="loader">
+      <div id="loaderTitle">Living Sun · Earth</div>
+      <div id="loaderTrack"><div id="loaderBar"></div></div>
+      <div id="loaderStep">Starting…</div>
+    </div>
+    <ul id="legend">
+      <li><b>Drag</b> — rotate</li>
+      <li><b>Scroll</b> — zoom</li>
+      <li><b>Double-click</b> the Sun, Earth or Moon — fly to it and follow</li>
+      <li><b>Click</b> Earth — sky view from that spot</li>
+      <li><b>Hold</b> on Earth — real-time speed</li>
+      <li><b>Parameters</b> panel — time, distance, Now, Where am I</li>
+    </ul>
+    <div id="toast"></div>
+    <div id="skyPanel" hidden>
+      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button></span><button id="skyClose" title="Close">×</button></div>
+      <div id="skyView">
+        <canvas id="skyCanvas"></canvas>
+        <button class="skyMark" id="markSun" title="Turn to the Sun" hidden>☀</button>
+        <button class="skyMark" id="markMoon" title="Turn to the Moon" hidden>☾</button>
+      </div>
+      <div id="skyInfo"></div>
+    </div>
+    <button id="creditsBtn" type="button">Credits</button>
+    <dialog id="creditsDlg" aria-labelledby="creditsTitle">
+      <header><h2 id="creditsTitle">Credits &amp; licenses</h2><button id="creditsClose" type="button" aria-label="Close">×</button></header>
+      <div class="body">
+        <h3>Inspiration &amp; foundations</h3>
+        <ul>
+          <li>Sun — shaders ported to TSL from the <a href="https://fwdapps.net/l/sun/" target="_blank" rel="noopener">“Sun”</a> demo by <a href="https://webdesign-flash.ro/" target="_blank" rel="noopener">FWDesign</a> (Tibi)</li>
+          <li>Earth — based on the three.js example <a href="https://threejs.org/examples/#webgpu_tsl_earth" target="_blank" rel="noopener">webgpu_tsl_earth</a> from <a href="https://threejs-journey.com/" target="_blank" rel="noopener">Three.js Journey</a> (Bruno Simon)</li>
+          <li>Volumetric clouds — after the <a href="https://github.com/CK42BB/procedural-clouds-threejs" target="_blank" rel="noopener">CK42BB/procedural-clouds-threejs</a> reference <span class="lic">MIT</span></li>
+        </ul>
+        <h3>Data &amp; services</h3>
+        <ul>
+          <li>Live clouds: <a href="https://clouds.matteason.co.uk/" target="_blank" rel="noopener">Live Cloud Maps</a> (Matt Eason) — contains modified EUMETSAT data</li>
+          <li>Local weather &amp; cloud cover: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> <span class="lic">data CC BY 4.0</span></li>
+          <li>Settlements: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> <span class="lic">CC BY 4.0</span></li>
+          <li>Sun, Moon and Earth positions: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (Don Cross) <span class="lic">MIT</span></li>
+          <li>Stars &amp; constellations: <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noopener">d3-celestial</a> (Olaf Frohn) <span class="lic">BSD-3-Clause</span></li>
+        </ul>
+        <h3>Textures</h3>
+        <ul>
+          <li>Earth (day, relief, water/land mask): <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> <span class="lic">CC BY 4.0</span></li>
+          <li>Moon: <a href="https://svs.gsfc.nasa.gov/4720" target="_blank" rel="noopener">CGI Moon Kit</a>, NASA's Scientific Visualization Studio</li>
+        </ul>
+        <h3>3D models</h3>
+        <ul>
+          <li>Mackerel: <a href="https://sketchfab.com/3d-models/atlantic-mackerel-animated-and-game-ready-eca6071c26fc4013b8c94a3f37a434c7" target="_blank" rel="noopener">“Atlantic Mackerel (Animated and Game-ready)”</a> by 1shxxn <span class="lic">CC BY 4.0</span></li>
+          <li>Bison: <a href="https://sketchfab.com/3d-models/animated-free-bison-be2dcd97db1c4b9c91a7728d9bc89925" target="_blank" rel="noopener">“Animated Free Bison”</a> by AneesAnimates <span class="lic">CC BY 4.0</span></li>
+          <li>Rhino: <a href="https://sketchfab.com/3d-models/rhino-animation-walk-a915d9179fe6422b9d669a3a0d726b8e" target="_blank" rel="noopener">“Rhino Animation Walk”</a> by GremorySaiyan <span class="lic">CC BY 4.0</span></li>
+        </ul>
+        <h3>Libraries</h3>
+        <ul>
+          <li><a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a> r186 (WebGPU, TSL, SkyMesh, WaterMesh, GLTFLoader) <span class="lic">MIT</span></li>
+          <li>Grass: <a href="https://github.com/AskAlice/threejs-grass" target="_blank" rel="noopener">threejs-grass</a> (AskAlice) <span class="lic">Apache-2.0</span></li>
+        </ul>
+      </div>
+    </dialog>
+    <script type="module">
+      import * as THREE from "three";
+      {
+        const dlg = document.getElementById("creditsDlg");
+        document.getElementById("creditsBtn").addEventListener("click", () => dlg.showModal());
+        document.getElementById("creditsClose").addEventListener("click", () => dlg.close());
+        dlg.addEventListener("click", (e) => {
+          if (e.target === dlg) dlg.close(); // клик по затемнённому фону вокруг окна
+        });
+      }
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { Inspector } from "three/addons/inspector/Inspector.js";
+      import WebGPU from "three/addons/capabilities/WebGPU.js";
+      import * as Astronomy from "astronomy-engine";
+      import { Grass, presets as grassPresets } from "threejs-grass";
+      import { SkyMesh } from "three/addons/objects/SkyMesh.js";
+      import { WaterMesh } from "three/addons/objects/WaterMesh.js";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
+      import {
+        Fn,
+        float,
+        vec2,
+        vec3,
+        vec4,
+        uniform,
+        attribute,
+        time,
+        positionWorld,
+        positionView,
+        normalWorld,
+        normalView,
+        normalLocal,
+        cameraPosition,
+        cameraProjectionMatrix,
+        cameraViewMatrix,
+        modelWorldMatrix,
+        uv,
+        texture,
+        lights,
+        mix,
+        clamp,
+        max,
+        dot,
+        normalize,
+        cross,
+        length,
+        abs,
+        floor,
+        fract,
+        step,
+        smoothstep,
+        sin,
+        cos,
+        sub,
+        mul,
+        output,
+        color,
+        acesFilmicToneMapping,
+        sRGBTransferOETF,
+        normalMap,
+        normalWorldGeometry,
+        modelViewMatrix,
+        positionLocal,
+        cubeTexture,
+        mx_fractal_noise_float,
+        min,
+        hash,
+        instanceIndex,
+        Loop,
+        If,
+        Break,
+        exp,
+        screenUV,
+        pow,
+      } from "three/tsl";
+
+      // Кадр выводится без тонмаппинга и цветового преобразования (как WebGL-оригинал Солнца).
+      // Для Земли, Луны, звёзд и фона ACES + sRGB применяются прямо в материале —
+      // для непрозрачных объектов это тот же результат, что давал общий проход рендерера.
+      const displayOut = () =>
+        vec4(sRGBTransferOETF(acesFilmicToneMapping(output.rgb, float(1.0))), output.a);
+
+      // индикатор загрузки: шаги — WebGPU, 3 текстуры Земли, поселения, текстура Луны, сборка сцены
+      const loaderEl = document.getElementById("loader");
+      const loaderBar = document.getElementById("loaderBar");
+      const loaderStep = document.getElementById("loaderStep");
+      const LOAD_STEPS = 7;
+      let loadDone = 0;
+      const progress = (label) => {
+        loadDone = Math.min(loadDone + 1, LOAD_STEPS);
+        const pct = Math.round((loadDone / LOAD_STEPS) * 100);
+        loaderBar.style.width = `${pct}%`;
+        loaderStep.textContent = `${label} · ${pct}%`;
+      };
+      const track = (promise, label) => promise.finally(() => progress(label));
+      const loaderError = (text) => {
+        loaderEl.classList.add("error");
+        loaderStep.textContent = text;
+      };
+      const loaderDone = () => {
+        loaderBar.style.width = "100%";
+        loaderStep.textContent = "Ready";
+        setTimeout(() => {
+          loaderEl.classList.add("done");
+          setTimeout(() => loaderEl.remove(), 700);
+        }, 250);
+      };
+      // короткие уведомления внизу (геолокация, ошибки) — исчезают сами
+      const toastEl = document.getElementById("toast");
+      let toastTimer = null;
+      const msg = (t, cls) => {
+        toastEl.textContent = t;
+        toastEl.className = `show ${cls || ""}`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => (toastEl.className = ""), cls === "err" ? 8000 : 4000);
+      };
+
+      // --- Настройки ---
+      const CAMERA_DIST = 6; // горизонтальное расстояние камеры до центра
+      const TILT_DEG = 30; // камера над плоскостью орбиты на 30°
+      const BASE_ORBIT = 4.0; // максимальный радиус орбиты (уменьшится под экран)
+      const GLOBE_FRAC = 0.17; // радиус шара = доля радиуса орбиты
+      const MARGIN = 0.04; // отступ от краёв холста
+      const ORBIT_BASE = 0.28; // рад/с — точка отсчёта: орбита Земли (при speedFactor=1)
+      const SPIN_BASE = ORBIT_BASE * (365.2564 / 0.99727); // Земля: ~366x орбиты (1 вращение/сутки)
+      const MOON_BASE = ORBIT_BASE * (365.2564 / 27.3217); // Луна: ~13.37x орбиты Земли
+      const GLOBE_TILT = (23.44 * Math.PI) / 180; // наклон оси Земли (реальный 23.44°)
+      const MOON_TILT = (5.14 * Math.PI) / 180; // наклон орбиты Луны к эклиптике (5.14°)
+      const MOON_DIST_FRAC = 2.5; // дистанция Луны в радиусах Земли
+      const SUN_FRAC = 0.38 * 4; // солнце ×4
+      // Наведение на Землю: замедлить ВСЁ (спин, орбита, Луна) — до ~1 обр/10с спина
+      const HOVER_SCALE = (Math.PI * 2) / 10 / SPIN_BASE;
+      // Параметры инспектора
+      const PARAMS = {
+        timeScale: 1, // × реального времени (1 = реальное время)
+        distanceFactor: 1.0, // × расстояние Земли до Солнца
+      };
+      let simTime = Date.now(); // время сцены, мс UTC
+      let live = true; // «живое» время: сцена идёт строго по системным часам (ВРЕМЯ × = 1)
+      let lastObserve = null; // время последней проверки наблюдателем
+      const OBSERVE_MS = 60 * 1000; // наблюдатель: раз в минуту
+      let holdEarth = false; // мышь зажата на Земле -> реальная скорость времени
+      let lastClock = 0;
+      let follow = null; // привязка камеры к телу (двойной клик)
+      const _fp = new THREE.Vector3();
+
+      let camera,
+        renderer,
+        scene,
+        globe,
+        sunMesh,
+        halo,
+        sunLight,
+        rayMesh,
+        moonOrbitGroup,
+        moonMesh,
+        sunRadius = 0;
+      let moonTex = null;
+      let moonPhase = 0;
+      let baseOrbitR = 0; // радиус орбиты, подгонённый под экран (фикс.)
+      let globeR = 0; // радиус Земли (от baseOrbitR, НЕ от текущей орбиты)
+      let orbitR = 0; // текущий радиус орбиты = baseOrbitR * distanceFactor
+      let phase = 0;
+      let prev = 0;
+      let earthTex = null;
+      let stars;
+      let haloTex = null;
+      let controls;
+
+      function buildStatic() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x06061a);
+        scene.backgroundNode = sRGBTransferOETF(acesFilmicToneMapping(color(0x06061a), float(1.0)));
+        scene.fog = new THREE.FogExp2(0x06061a, 0.02);
+
+        camera = new THREE.PerspectiveCamera(
+          55,
+          innerWidth / innerHeight,
+          0.1,
+          200,
+        );
+        camera.position.set(
+          0,
+          CAMERA_DIST * Math.tan((TILT_DEG * Math.PI) / 180),
+          CAMERA_DIST,
+        );
+        camera.lookAt(0, 0, 0);
+
+        // Единственный источник освещения — точечный источник в центре орбиты (солнце).
+        // Внешний (Hemisphere/Directional) свет убран.
+        sunLight = new THREE.PointLight(0xffcc66, 60, 0, 2);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        // звёзды
+        const n = 600;
+        const p = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) {
+          const th = Math.random() * Math.PI * 2;
+          const ph = Math.acos(2 * Math.random() - 1);
+          const r = 26 + Math.random() * 10;
+          p[i * 3] = r * Math.sin(ph) * Math.cos(th);
+          p[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+          p[i * 3 + 2] = r * Math.cos(ph);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.BufferAttribute(p, 3));
+        stars = new THREE.Points(
+          g,
+          new THREE.PointsNodeMaterial({
+            outputNode: displayOut(),
+            color: 0xd8e8ff,
+            size: 8,
+            sizeAttenuation: false,
+            fog: false,
+          }),
+        );
+        scene.add(stars);
+      }
+
+      // --- Проекция орбиты + шар -> bounding box в пикселях ---
+      function bbox(R, G) {
+        const w = innerWidth;
+        const h = innerHeight;
+        const tanA = Math.tan((camera.fov * Math.PI) / 360);
+        const sample = 900;
+        let minX = w,
+          maxX = 0,
+          minY = h,
+          maxY = 0;
+        const v = new THREE.Vector3();
+        const ndc = new THREE.Vector3();
+        const camPos = camera.position;
+        for (let i = 0; i < sample; i++) {
+          const phi = (i / sample) * Math.PI * 2;
+          v.set(R * Math.cos(phi), 0, R * Math.sin(phi));
+          const D = camPos.distanceTo(v);
+          const rpx = (G * h) / (2 * D * tanA);
+          ndc.copy(v).project(camera);
+          const px = (ndc.x + 1) * 0.5 * w;
+          const py = (1 - ndc.y) * 0.5 * h;
+          if (px - rpx < minX) minX = px - rpx;
+          if (px + rpx > maxX) maxX = px + rpx;
+          if (py - rpx < minY) minY = py - rpx;
+          if (py + rpx > maxY) maxY = py + rpx;
+        }
+        return { minX, minY, maxX, maxY };
+      }
+
+      // Все точки орбиты строго впереди камеры + bbox в пределах экрана
+      function fits(R) {
+        const camPos = camera.position;
+        const viewDir = new THREE.Vector3();
+        camera.getWorldDirection(viewDir);
+        const tmp = new THREE.Vector3();
+        const sample = 900;
+        for (let i = 0; i < sample; i++) {
+          const phi = (i / sample) * Math.PI * 2;
+          tmp.set(R * Math.cos(phi), 0, R * Math.sin(phi)).sub(camPos);
+          if (tmp.dot(viewDir) <= 0.5) return false; // за/на камере -> нельзя
+        }
+        const m = Math.min(innerWidth, innerHeight) * MARGIN;
+        const bb = bbox(R, R * GLOBE_FRAC);
+        if (![bb.minX, bb.maxX, bb.minY, bb.maxY].every(Number.isFinite))
+          return false;
+        return (
+          bb.minX >= m &&
+          bb.maxX <= innerWidth - m &&
+          bb.minY >= m &&
+          bb.maxY <= innerHeight - m
+        );
+      }
+
+      // Бинарный поиск: в кадре и впереди камеры
+      function computeSizes() {
+        const camDist = camera.position.length();
+        let lo = 0;
+        let hi = Math.min(BASE_ORBIT, 0.7 * camDist);
+        for (let i = 0; i < 32; i++) {
+          const mid = (lo + hi) / 2;
+          if (fits(mid)) lo = mid;
+          else hi = mid;
+        }
+        baseOrbitR = lo;
+        globeR = baseOrbitR * GLOBE_FRAC;
+        orbitR = baseOrbitR * PARAMS.distanceFactor;
+      }
+
+      // --- Ассеты Земли: текстуры Solar System Scope (4K) и база поселений GeoNames ---
+      function loadTexturePromise(url) {
+        return new Promise((resolve, reject) => {
+          new THREE.TextureLoader().load(url, resolve, undefined, reject);
+        });
+      }
+      let earthDayTex = null, earthSpecTex = null, earthNormalTex = null, cityData = null;
+      async function loadEarthAssets() {
+        const opt = (p) => p.catch((e) => (console.warn("[diag] не загрузилось:", e), null));
+        const [day, spec, nrm, cities] = await Promise.all([
+          opt(track(loadTexturePromise("textures/earth_day_4k.jpg"), "Earth surface")),
+          opt(track(loadTexturePromise("textures/earth_specular_4k.jpg"), "Water and land")),
+          opt(track(loadTexturePromise("textures/earth_normal_4k.png"), "Earth relief")),
+          opt(track(fetch("textures/cities.bin").then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))), "Settlements")),
+        ]);
+        if (day) {
+          day.colorSpace = THREE.SRGBColorSpace;
+          day.anisotropy = 8;
+        }
+        for (const t of [spec, nrm]) if (t) t.anisotropy = 8;
+        earthDayTex = day;
+        earthSpecTex = spec;
+        earthNormalTex = nrm;
+        cityData = cities ? new Float32Array(cities) : null;
+        console.log("[diag] текстуры Земли:", !!day, !!spec, !!nrm, "| поселений:", cityData ? cityData.length / 3 : 0);
+      }
+
+      // --- Текстура Луны (luna_2k.jpg) ---
+      async function loadMoonTex() {
+        try {
+          moonTex = await track(loadTexturePromise("luna_2k.jpg"), "Moon");
+          console.log("[diag] текстура Луны: luna_2k.jpg");
+        } catch (e) {
+          console.warn("[diag] текстура Луны не найдена — Луна остаётся серой");
+        }
+      }
+
+      // --- Корона (фейк-bloom): аддитивный спрайт с радиальным градиентом ---
+      function makeHaloTexture() {
+        const c = document.createElement("canvas");
+        c.width = c.height = 512;
+        const ctx = c.getContext("2d");
+        const gr = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+        gr.addColorStop(0.0, "rgba(255,245,215,0.95)");
+        gr.addColorStop(0.15, "rgba(255,225,160,0.90)");
+        gr.addColorStop(0.28, "rgba(255,205,120,0.80)");
+        gr.addColorStop(0.45, "rgba(255,170,70,0.55)");
+        gr.addColorStop(0.6, "rgba(255,140,40,0.35)");
+        gr.addColorStop(0.8, "rgba(255,100,25,0.15)");
+        gr.addColorStop(1.0, "rgba(255,80,15,0)");
+        ctx.fillStyle = gr;
+        ctx.fillRect(0, 0, 512, 512);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }
+
+      // =====================================================================
+      // СОЛНЦЕ — перенос шейдеров sun/js/shader/*.glsl на TSL один к одному.
+      // Параметры (uniforms) — из sun/js/FWDDSImageManager.js.
+      // Кадр выводится без тонмаппинга и без цветового преобразования — как ShaderMaterial
+      // в оригинале (WebGLRenderer, NoToneMapping, сырые значения в кадр).
+      // Масштаб: всё строится в единицах оригинала (сфера R=1.5, якоря 1.49),
+      // группа sunGroup масштабируется под размер сцены (k = sunRadius/1.5).
+      // =====================================================================
+      const SUN_SPHERE_R = 1.5; // оригинал: SphereGeometry(1.5, 64, 64)
+      const SUN_RIBBON_R = 1.49; // оригинал: sunRadius лучей/флэров/glow
+      const SUN_IDLE_YAW = 0.08; // рад/с — холостое вращение (оригинал: _IDLE_YAW)
+      let sunGroup, sunScaleU, camUpU;
+
+      // ---------- includes/simplex4d.glsl (Ashima Arts, MIT) ----------
+      const mod289 = (x) => x.sub(floor(x.mul(1.0 / 289.0)).mul(289.0));
+      const permute = (x) => mod289(x.mul(34.0).add(1.0).mul(x));
+      const taylorInvSqrt = (r) => r.mul(-0.85373472095314).add(1.79284291400159);
+
+      const grad4 = Fn(([j, ip]) => {
+        const pxyz = floor(fract(vec3(j).mul(ip.xyz)).mul(7.0)).mul(ip.z).sub(1.0);
+        const pw = float(1.5).sub(dot(abs(pxyz), vec3(1.0, 1.0, 1.0)));
+        // s = vec4(lessThan(p, vec4(0.0)))
+        const sxyz = vec3(1.0).sub(step(vec3(0.0), pxyz));
+        const sw = float(1.0).sub(step(0.0, pw));
+        // p.xyz = p.xyz + (s.xyz*2.0 - 1.0) * s.www
+        return vec4(pxyz.add(sxyz.mul(2.0).sub(1.0).mul(sw)), pw);
+      }).setLayout({
+        name: "grad4",
+        type: "vec4",
+        inputs: [
+          { name: "j", type: "float" },
+          { name: "ip", type: "vec4" },
+        ],
+      });
+
+      const snoise4 = Fn(([v]) => {
+        const C = vec4(0.138196601125011, 0.276393202250021, 0.414589803375032, -0.447213595499958);
+        const F4 = 0.309016994374947451;
+        const i = floor(v.add(dot(v, vec4(F4))));
+        const x0 = v.sub(i).add(dot(i, C.xxxx));
+        const isX = step(x0.yzw, x0.xxx);
+        const isYZ = step(x0.zww, x0.yyz);
+        const one = float(1.0);
+        const i0 = vec4(
+          isX.x.add(isX.y).add(isX.z),
+          one.sub(isX.x).add(isYZ.x).add(isYZ.y),
+          one.sub(isX.y).add(one.sub(isYZ.x)).add(isYZ.z),
+          one.sub(isX.z).add(one.sub(isYZ.y)).add(one.sub(isYZ.z)),
+        );
+        const z4 = vec4(0.0), o4 = vec4(1.0);
+        const i3 = clamp(i0, z4, o4);
+        const i2 = clamp(i0.sub(1.0), z4, o4);
+        const i1 = clamp(i0.sub(2.0), z4, o4);
+        const x1 = x0.sub(i1).add(C.xxxx);
+        const x2 = x0.sub(i2).add(C.yyyy);
+        const x3 = x0.sub(i3).add(C.zzzz);
+        const x4 = x0.add(C.wwww);
+        const im = mod289(i);
+        const j0 = permute(permute(permute(permute(im.w).add(im.z)).add(im.y)).add(im.x));
+        const j1 = permute(
+          permute(
+            permute(permute(im.w.add(vec4(i1.w, i2.w, i3.w, 1.0))).add(im.z).add(vec4(i1.z, i2.z, i3.z, 1.0)))
+              .add(im.y)
+              .add(vec4(i1.y, i2.y, i3.y, 1.0)),
+          )
+            .add(im.x)
+            .add(vec4(i1.x, i2.x, i3.x, 1.0)),
+        );
+        const ip = vec4(1.0 / 294.0, 1.0 / 49.0, 1.0 / 7.0, 0.0);
+        let p0 = grad4(j0, ip);
+        let p1 = grad4(j1.x, ip);
+        let p2 = grad4(j1.y, ip);
+        let p3 = grad4(j1.z, ip);
+        let p4 = grad4(j1.w, ip);
+        const norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+        p0 = p0.mul(norm.x);
+        p1 = p1.mul(norm.y);
+        p2 = p2.mul(norm.z);
+        p3 = p3.mul(norm.w);
+        p4 = p4.mul(taylorInvSqrt(dot(p4, p4)));
+        const m0 = max(vec3(0.6).sub(vec3(dot(x0, x0), dot(x1, x1), dot(x2, x2))), vec3(0.0));
+        const m1 = max(vec2(0.6).sub(vec2(dot(x3, x3), dot(x4, x4))), vec2(0.0));
+        const m0s = m0.mul(m0);
+        const m1s = m1.mul(m1);
+        return float(49.0).mul(
+          dot(m0s.mul(m0s), vec3(dot(p0, x0), dot(p1, x1), dot(p2, x2))).add(
+            dot(m1s.mul(m1s), vec2(dot(p3, x3), dot(p4, x4))),
+          ),
+        );
+      }).setLayout({ name: "snoise4", type: "float", inputs: [{ name: "v", type: "vec4" }] });
+
+      // ---------- perlinFS.glsl: канал X кубмапы в направлении dir ----------
+      // uSpatialFrequency 6, uTemporalFrequency .1, uH 1, uContrast .25, uFlatten .72, OCTAVES 5.
+      // В оригинале значение запекается в RGBA8-кубмапу -> clamp 0..1.
+      const perlinX = Fn(([dir, t]) => {
+        const world = normalize(dir).add(12.45);
+        let sum = float(0.0);
+        for (let o = 0; o < 5; o++) {
+          const f = Math.pow(2, o); // f *= 2.0; a = uH^o = 1
+          // в fbm p.w += 100 после каждого отсчёта X -> для октавы o: w = t + 100*o; затем p*f
+          sum = sum.add(snoise4(vec4(world.mul(6.0 * f), t.add(100.0 * o).mul(f))));
+        }
+        const fx = sum.mul(0.25).add(0.5);
+        const modulate = max(snoise4(vec4(world.mul(2.0), t)), 0.0);
+        return clamp(mix(fx, fx.mul(modulate), 0.72), 0.0, 1.0);
+      }).setLayout({
+        name: "perlinX",
+        type: "float",
+        inputs: [
+          { name: "dir", type: "vec3" },
+          { name: "t", type: "float" },
+        ],
+      });
+
+      // ---------- sunSphereVS/FS.glsl ----------
+      function makeSunSphere() {
+        const tL = time.mul(0.04); // sunMaterial.uTime = time * 0.04
+        const tP = time.mul(0.01); // perlin: uTime(time*0.1) * uTemporalFrequency(0.1)
+        const n = normalize(normalLocal);
+        // setLayers: rot(a) = mat2(c,-s,s,c) -> (c*u + s*v, -s*u + c*v)
+        const c0 = cos(tL), s0 = sin(tL);
+        const layer0 = vec3(n.x, c0.mul(n.y).add(s0.mul(n.z)), c0.mul(n.z).sub(s0.mul(n.y)));
+        const a1 = tL.add(2.094), c1 = cos(a1), s1 = sin(a1); // p1.zx
+        const layer1 = vec3(c1.mul(n.x).sub(s1.mul(n.z)), n.y, c1.mul(n.z).add(s1.mul(n.x)));
+        const a2 = tL.sub(4.188), c2 = cos(a2), s2 = sin(a2); // p1.xy
+        const layer2 = vec3(c2.mul(n.x).add(s2.mul(n.y)), c2.mul(n.y).sub(s2.mul(n.x)), n.z);
+        const ocean = perlinX(layer0, tP).add(perlinX(layer1, tP)).add(perlinX(layer2, tP)).mul(0.3333333);
+        // Fresnel: как в sunSphereFS.glsl, nDotV = dot(n, направление на камеру).
+        // В оригинале камера стоит на расстоянии 3 от центра Солнца (R=1.5), т.е. в 2 радиусах,
+        // и именно это даёт широкий яркий край. Подставляем такую же «виртуальную камеру»:
+        // в направлении реальной камеры, на расстоянии 3 единиц оригинала (с масштабом k).
+        const camVirt = normalize(cameraPosition).mul(sunScaleU.mul(3.0));
+        const nDotV = dot(normalWorld, normalize(camVirt.sub(positionWorld)));
+        const fresnel = float(1.0).sub(nDotV).mul(0.8); // pow(1-nDotV, uFresnelPower=1) * 0.8
+        const brightness = ocean.mul(4.0).add(1.0).add(fresnel); // uBase 4, uBrightnessOffset 1
+        const b = brightness.mul(0.2); // uTint 0.2
+        const b2 = b.mul(b);
+        const col = clamp(vec3(b, b2, b2.mul(b2)).div(0.2).mul(0.6), vec3(0.0), vec3(1.0)); // uBrightness 0.6
+        // getAlpha() при uVisibility=1 всегда = 1 (smoothstep(1,1.5, x>=1.5)) -> сфера непрозрачна
+        const mat = new THREE.MeshBasicNodeMaterial({ fog: false });
+        mat.colorNode = col;
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(SUN_SPHERE_R, 64, 64), mat);
+        mesh.renderOrder = 0;
+        sunGroup.add(mesh);
+      }
+
+      // ---------- twistedSineNoise (общий для лучей и флэров) ----------
+      // m4 = mat4(0.00,0.80,0.60,-0.4, -0.80,0.36,-0.48,-0.5, -0.60,-0.48,0.64,0.2, 0.40,0.30,0.20,0.4) — по столбцам
+      const M4C0 = vec4(0.0, 0.8, 0.6, -0.4);
+      const M4C1 = vec4(-0.8, 0.36, -0.48, -0.5);
+      const M4C2 = vec4(-0.6, -0.48, 0.64, 0.2);
+      const M4C3 = vec4(0.4, 0.3, 0.2, 0.4);
+      const m4mul = (q) => M4C0.mul(q.x).add(M4C1.mul(q.y)).add(M4C2.mul(q.z)).add(M4C3.mul(q.w));
+      const twistedSineNoise = Fn(([q0]) => {
+        let q = q0;
+        let a = 1.0,
+          f = 1.0;
+        let sum = vec4(0.0);
+        for (let i = 0; i < 4; i++) {
+          q = m4mul(q);
+          const s = sin(q.ywxz.mul(f)).mul(a); // sin(q.ywxz * f) * a
+          q = q.add(s);
+          sum = sum.add(s);
+          a *= 0.707; // falloff
+          f /= 0.707;
+        }
+        return sum;
+      }).setLayout({ name: "twistedSineNoise", type: "vec4", inputs: [{ name: "q", type: "vec4" }] });
+
+      const viewProj = (pWorld) => cameraProjectionMatrix.mul(cameraViewMatrix.mul(vec4(pWorld, 1.0)));
+      const toWorld = (p) => modelWorldMatrix.mul(vec4(p, 1.0)).xyz;
+
+      const randomUnit = (v) => {
+        const z = Math.random() * 2 - 1;
+        const t = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(1 - z * z);
+        return v.set(r * Math.cos(t), r * Math.sin(t), z);
+      };
+
+      function finishRibbonGeometry(geo, anchor) {
+        // 'position' нужен рендереру (setupPosition); фактическая вершина — во vertexNode
+        geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(anchor), 3));
+        geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), SUN_SPHERE_R * 3);
+      }
+
+      // ---------- sunRaysVS/FS.glsl ----------
+      function makeSunRays() {
+        const lineCount = 4095;
+        const lineLength = 8;
+        const totalVerts = lineCount * lineLength * 2;
+        const aPos = new Float32Array(totalVerts * 3);
+        const aPos0 = new Float32Array(totalVerts * 3);
+        const aWireRand = new Float32Array(totalVerts * 4);
+        const indices = new Uint16Array(lineCount * (lineLength - 1) * 6);
+        const base = new THREE.Vector3(), jitter = new THREE.Vector3(), held = new THREE.Vector3();
+        let ip = 0, i0 = 0, ir = 0, ii = 0, rd0 = 0, rd1 = 0;
+        for (let v = 0; v < lineCount; v++) {
+          if (Math.random() < 0.1 || v === 0) {
+            randomUnit(held).normalize();
+            rd0 = Math.random();
+            rd1 = Math.random();
+          }
+          base.copy(held);
+          randomUnit(jitter).multiplyScalar(0.025);
+          base.add(jitter).normalize();
+          const rands = [rd0, rd1, Math.random(), Math.random()];
+          for (let m = 0; m < lineLength; m++) {
+            const vb = 2 * (v * lineLength + m);
+            for (let y = 0; y <= 1; y++) {
+              aPos[ip++] = (m + 0.5) / lineLength;
+              aPos[ip++] = (v + 0.5) / lineCount;
+              aPos[ip++] = 2 * y - 1;
+              for (let t = 0; t < 4; t++) aWireRand[ir++] = rands[t];
+              aPos0[i0++] = base.x * SUN_RIBBON_R;
+              aPos0[i0++] = base.y * SUN_RIBBON_R;
+              aPos0[i0++] = base.z * SUN_RIBBON_R;
+            }
+            if (m < lineLength - 1) {
+              indices[ii++] = vb;
+              indices[ii++] = vb + 1;
+              indices[ii++] = vb + 2;
+              indices[ii++] = vb + 2;
+              indices[ii++] = vb + 1;
+              indices[ii++] = vb + 3;
+            }
+          }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("aPos", new THREE.BufferAttribute(aPos, 3));
+        geo.setAttribute("aPos0", new THREE.BufferAttribute(aPos0, 3));
+        geo.setAttribute("aWireRandom", new THREE.BufferAttribute(aWireRand, 4));
+        geo.setIndex(new THREE.BufferAttribute(indices, 1));
+        finishRibbonGeometry(geo, aPos0);
+
+        const A = attribute("aPos", "vec3");
+        const A0 = attribute("aPos0", "vec3");
+        const W = attribute("aWireRandom", "vec4");
+        // uLength .45, uNoiseFrequency 8, uNoiseAmplitude .4, uWidth .03, uOpacity .03, uHue .2, uHueSpread .2
+        const getPos = (phase) => {
+          const size = W.z.add(0.2);
+          const d = phase.mul(0.45).mul(size);
+          const p = A0.add(A0.mul(d));
+          return p.add(twistedSineNoise(vec4(p.mul(8.0), time)).xyz.mul(d.mul(0.4)));
+        };
+        const p0w = toWorld(getPos(A.x));
+        const p1w = toWorld(getPos(A.x.add(0.01)));
+        const dirW = normalize(p1w.sub(p0w));
+        const vW = normalize(p0w.sub(cameraPosition));
+        const sideW = normalize(cross(vW, dirW));
+        const width = float(0.03).mul(A.z).mul(float(1.0).sub(A.x)).mul(sunScaleU); // мировые единицы оригинала * k
+        const pWorld = p0w.add(sideW.mul(width));
+
+        const vOpacity = float(0.03).mul(W.w.add(0.5));
+        const sd = vec3(W.w.mul(0.2).add(0.2)); // spectrum(aWireRandom.w * uHueSpread + uHue)
+        const vColor = vec3(1.0).sub(smoothstep(vec3(0.0), vec3(0.25), abs(sd.add(vec3(-0.375, -0.5, -0.625)))));
+        let alpha = float(1.0).sub(smoothstep(0.0, 1.0, abs(A.z)));
+        alpha = alpha.mul(alpha).mul(vOpacity); // * getAlpha() = 1
+        // выход оригинала: vec4(vColor*alpha, alpha), AdditiveBlending premultiplied (One, One)
+        const mat = new THREE.MeshBasicNodeMaterial({
+          transparent: true,
+          premultipliedAlpha: true,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          fog: false,
+        });
+        mat.vertexNode = viewProj(pWorld);
+        mat.colorNode = vColor;
+        mat.opacityNode = alpha;
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 3;
+        sunGroup.add(mesh);
+      }
+
+      // ---------- sunFlaresVS/FS.glsl ----------
+      function makeSunFlares() {
+        const lineCount = 2047;
+        const lineLength = 16;
+        const totalVerts = lineCount * lineLength * 2;
+        const aPos = new Float32Array(totalVerts * 3);
+        const aPos0 = new Float32Array(totalVerts * 3);
+        const aPos1 = new Float32Array(totalVerts * 3);
+        const aWireRand = new Float32Array(totalVerts * 4);
+        const indices = new Uint16Array(lineCount * (lineLength - 1) * 6);
+        const held = new THREE.Vector3(), d = new THREE.Vector3(), f = new THREE.Vector3();
+        const p = new THREE.Vector3(), g = new THREE.Vector3();
+        let s = 0, l = 0, c = 0, h = 0, u = 0;
+        let m = Math.random(), _p = Math.random();
+        const rnd3 = (v) => v.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
+        for (let y = 0; y < lineCount; y++) {
+          if (Math.random() < 0.025 || y === 0) {
+            rnd3(d);
+            held.copy(d);
+            held.add(rnd3(g).multiplyScalar(0.4)).normalize();
+            m = Math.random();
+            _p = Math.random();
+          }
+          f.copy(d).add(rnd3(g).multiplyScalar(0.02)).normalize();
+          p.copy(held).add(rnd3(g).multiplyScalar(0.075)).normalize();
+          const rands = [m, _p, Math.random(), Math.random()];
+          for (let E = 0; E < lineLength; E++) {
+            const base = 2 * (y * lineLength + E);
+            for (let A = 0; A <= 1; A++) {
+              aPos[s++] = (E + 0.5) / lineLength;
+              aPos[s++] = (y + 0.5) / lineCount;
+              aPos[s++] = 2 * A - 1;
+              for (let R = 0; R < 4; R++) aWireRand[l++] = rands[R];
+              aPos0[c++] = f.x * SUN_RIBBON_R;
+              aPos0[c++] = f.y * SUN_RIBBON_R;
+              aPos0[c++] = f.z * SUN_RIBBON_R;
+              aPos1[h++] = p.x * SUN_RIBBON_R;
+              aPos1[h++] = p.y * SUN_RIBBON_R;
+              aPos1[h++] = p.z * SUN_RIBBON_R;
+            }
+            if (E < lineLength - 1) {
+              indices[u++] = base;
+              indices[u++] = base + 1;
+              indices[u++] = base + 2;
+              indices[u++] = base + 2;
+              indices[u++] = base + 1;
+              indices[u++] = base + 3;
+            }
+          }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("aPos", new THREE.BufferAttribute(aPos, 3));
+        geo.setAttribute("aPos0", new THREE.BufferAttribute(aPos0, 3));
+        geo.setAttribute("aPos1", new THREE.BufferAttribute(aPos1, 3));
+        geo.setAttribute("aWireRandom", new THREE.BufferAttribute(aWireRand, 4));
+        geo.setIndex(new THREE.BufferAttribute(indices, 1));
+        finishRibbonGeometry(geo, aPos0);
+
+        const A = attribute("aPos", "vec3");
+        const A0 = attribute("aPos0", "vec3");
+        const A1 = attribute("aPos1", "vec3");
+        const W = attribute("aWireRandom", "vec4");
+        // uWidth .005, uAmp .5, uOpacity .2, uAlphaBlended .65, uHueSpread .16, uHue 0,
+        // uNoiseFrequency 4, uNoiseAmplitude .2
+        const animPhase = fract(time.mul(0.3).mul(W.y.mul(0.5)).add(W.x));
+        const getPosOBJ = (phase) => {
+          const size = length(A1.sub(A0));
+          const nrm = normalize(A0.add(A1).mul(0.5));
+          let pp = mix(A0, A1, phase);
+          const amp = sin(phase.mul(3.14159265)).mul(size).mul(0.5).mul(animPhase);
+          pp = pp.add(nrm.mul(amp));
+          return pp.add(twistedSineNoise(vec4(pp.mul(4.0), time)).xyz.mul(amp.mul(0.2)));
+        };
+        const pW = toWorld(getPosOBJ(A.x));
+        const p1W = toWorld(getPosOBJ(A.x.add(0.01)));
+        const dirW = normalize(p1W.sub(pW));
+        const vW = normalize(pW.sub(cameraPosition));
+        const sideW = normalize(cross(vW, dirW));
+        const R = length(A0);
+        const width = float(0.005).mul(A.z).mul(float(1.0).add(animPhase)).mul(R).mul(sunScaleU);
+        const pWorld = pW.add(sideW.mul(width));
+        // smoothstep(R, R*1.03, lenW) — в единицах оригинала (делим на k)
+        const lenW = length(pWorld).div(sunScaleU);
+        const vOpacity = smoothstep(R, R.mul(1.03), lenW)
+          .mul(float(1.0).sub(animPhase))
+          .mul(0.2)
+          .toVarying("vFlareOpacity");
+        // hue(v) = .6 + .6*cos(6.3*v + vec3(0,23,21)), v = aWireRandom.w*0.16 + 0.0
+        const hv = W.w.mul(0.16);
+        const vColor = vec3(0.6).add(cos(vec3(hv.mul(6.3)).add(vec3(0.0, 23.0, 21.0))).mul(0.6));
+        let alpha = float(1.0).sub(smoothstep(0.0, 1.0, abs(A.z)));
+        alpha = alpha.mul(alpha).mul(vOpacity); // * getAlpha() = 1
+        // выход оригинала: vec4(vColor*alpha, alpha*0.65), NormalBlending premultiplied
+        // three домножает rgb на итоговую альфу (alpha*0.65) -> цвет делим на 0.65
+        const mat = new THREE.MeshBasicNodeMaterial({
+          transparent: true,
+          premultipliedAlpha: true,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.NormalBlending,
+          side: THREE.DoubleSide,
+          fog: false,
+        });
+        mat.vertexNode = viewProj(pWorld);
+        mat.colorNode = vColor.div(0.65);
+        mat.opacityNode = alpha.mul(0.65);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 1;
+        sunGroup.add(mesh);
+      }
+
+      // ---------- glowVS/FS.glsl ----------
+      function makeSunGlow() {
+        const segments = 134;
+        const positions = new Float32Array(3 * (2 * segments));
+        let r = 0;
+        for (let a = 0; a < segments; a++) {
+          const s = (a / segments) * Math.PI * 2.0;
+          const sx = Math.sin(s) * SUN_RIBBON_R;
+          const sy = Math.cos(s) * SUN_RIBBON_R;
+          positions[r++] = sx;
+          positions[r++] = sy;
+          positions[r++] = 0.0;
+          positions[r++] = sx;
+          positions[r++] = sy;
+          positions[r++] = 1.0;
+        }
+        const indices = new Uint16Array(2 * segments * 3);
+        let o = 0;
+        for (let a = 0; a < segments; a++) {
+          const i0 = 2 * a, i1 = 2 * a + 1, i2 = 2 * ((a + 1) % segments), i3 = i2 + 1;
+          indices[o++] = i0;
+          indices[o++] = i1;
+          indices[o++] = i2;
+          indices[o++] = i2;
+          indices[o++] = i1;
+          indices[o++] = i3;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("aPos", new THREE.BufferAttribute(positions, 3));
+        geo.setIndex(new THREE.BufferAttribute(indices, 1));
+        finishRibbonGeometry(geo, positions);
+
+        const A = attribute("aPos", "vec3");
+        // side = normalize(cross(normalize(-uCamPos), uCamUp)); p = x*side + y*uCamUp; p *= 1 + z*uRadius(0.4)
+        // В оригинале камера ортографическая и смотрит на Солнце, поэтому uCamUp перпендикулярен лучу на Солнце.
+        // В перспективе при Солнце не в центре кадра это не так — кольцо наклоняется и отходит от края диска.
+        // Поэтому «вверх» очищаем от составляющей вдоль луча камера—центр Солнца (при Солнце в центре — как в оригинале).
+        const toSun = normalize(cameraPosition.mul(-1.0));
+        const upOrtho = normalize(camUpU.sub(toSun.mul(dot(camUpU, toSun))));
+        const side = normalize(cross(toSun, upOrtho));
+        // В оригинале камера ортографическая: силуэт сферы = 1.5, внутренний край glow = 1.49.
+        // В перспективе видимый силуэт больше в 1/sqrt(1-(R/D)^2) раз, где D — расстояние до центра
+        // (в единицах оригинала). Масштабируем кольцо так же, чтобы glow стоял относительно края диска,
+        // как в оригинале, и не заходил на диск плотной полосой.
+        const dSun = length(cameraPosition).div(sunScaleU);
+        const rOverD = float(SUN_SPHERE_R).div(dSun);
+        const persp = float(1.0).div(max(float(1.0).sub(rOverD.mul(rOverD)), 0.0001).sqrt());
+        const pp = side.mul(A.x).add(upOrtho.mul(A.y)).mul(float(1.0).add(A.z.mul(0.4))).mul(persp);
+        // в оригинале glow не использует modelMatrix (центр Солнца в начале координат); масштаб k
+        const pWorld = pp.mul(sunScaleU);
+        let alpha = float(1.0).sub(A.z); // vRadial
+        alpha = alpha.mul(alpha);
+        const brightness = float(1.0).add(alpha.mul(0.5)); // uFalloffColor 0.5
+        const b = brightness.mul(0.4); // uTint 0.4
+        const b2 = b.mul(b);
+        const col = vec3(b, b2, b2.mul(b2)).div(0.4).mul(1.06); // uBrightness 1.06
+        // выход: vec4(col*alpha, alpha), NormalBlending premultiplied, depthTest false
+        const mat = new THREE.MeshBasicNodeMaterial({
+          transparent: true,
+          premultipliedAlpha: true,
+          depthWrite: false,
+          depthTest: true, // в оригинале false; здесь Земля может оказаться перед Солнцем
+          blending: THREE.NormalBlending,
+          side: THREE.DoubleSide,
+          fog: false,
+        });
+        mat.vertexNode = viewProj(pWorld);
+        mat.colorNode = col;
+        mat.opacityNode = alpha; // * getAlpha() = 1
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 2;
+        sunGroup.add(mesh);
+      }
+
+      // ---------- сборка Солнца ----------
+      function buildSun() {
+        const sr = globeR * SUN_FRAC;
+        sunRadius = sr;
+        const k = sr / SUN_SPHERE_R;
+        sunGroup = new THREE.Group();
+        sunGroup.scale.setScalar(k);
+        scene.add(sunGroup);
+        sunScaleU = uniform(k);
+        camUpU = uniform(new THREE.Vector3(0, 1, 0));
+        makeSunSphere(); // renderOrder 0
+        makeSunFlares(); // 1
+        makeSunGlow(); // 2
+        makeSunRays(); // 3
+
+      }
+
+      // Один проход прямо в canvas: без тонмаппинга и цветового преобразования (renderer
+      // настроен в main). Шейдеры Солнца пишут сырые значения, как ShaderMaterial в оригинале.
+      function renderFrame() {
+        camUpU.value.set(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+        renderer.render(scene, camera);
+      }
+
+      // =====================================================================
+      // ЗЕМЛЯ — по примеру three.js webgpu_tsl_earth (по уроку Three.js Journey):
+      // дневная текстура без облаков, PBR-блик на воде, рельеф (карта нормалей),
+      // атмосфера (Френель, дневной/сумеречный цвет). Ночная сторона без текстуры огней:
+      // огни — шейдерный слой мерцающих точек реальных поселений (GeoNames).
+      // Облака — отдельный слой: живая карта Live Cloud Maps (EUMETSAT), обновление раз в 3 ч.
+      // Положение и поворот Земли, положение Луны — по реальной дате (Astronomy Engine).
+      // =====================================================================
+      const CLOUD_URL = "https://clouds.matteason.co.uk/images/4096x2048/clouds-alpha.png";
+      const CLOUD_REFRESH_MS = 30 * 60 * 1000;
+      const D2R = Math.PI / 180;
+      let earthSunLight, sunDirU, cloudsMesh, cityPxU;
+      const cloudTexNodes = []; // все узлы, читающие карту облаков (подмена .value при загрузке)
+      let cloudsLoadedAt = null;
+      const atmosphereDayColor = uniform(color("#4db2ff"));
+      const atmosphereTwilightColor = uniform(color("#bc490b"));
+      const roughnessLow = uniform(0.2); // шероховатость спокойной воды
+      const roughnessHigh = uniform(0.35);
+      const cityGain = uniform(1.0);
+      const waterVar = uniform(1.0); // неоднородность шероховатости воды (0 — ровная вода)
+
+      function makeBlankTexture() {
+        const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
+        t.needsUpdate = true;
+        return t;
+      }
+      const blankCloudTex = makeBlankTexture();
+
+      function makeGlobe() {
+        globe = new THREE.Group();
+        scene.add(globe);
+        sunDirU = uniform(new THREE.Vector3(1, 0, 0)); // направление из центра Земли на Солнце (мир)
+
+        // Солнечный свет только для Земли, как DirectionalLight в примере: из центра Солнца на Землю
+        earthSunLight = new THREE.DirectionalLight("#ffffff", 2);
+        earthSunLight.position.set(0, 0, 0);
+        earthSunLight.target = globe;
+        scene.add(earthSunLight);
+
+        const geo = new THREE.SphereGeometry(globeR, 128, 64);
+
+        // fresnel и ориентация к Солнцу — как в примере
+        const viewDirection = positionWorld.sub(cameraPosition).normalize();
+        const fresnel = viewDirection.dot(normalWorldGeometry).abs().oneMinus().toVar();
+        const sunOrientation = normalWorldGeometry.dot(sunDirU).toVar();
+        const atmosphereColor = mix(
+          atmosphereTwilightColor,
+          atmosphereDayColor,
+          sunOrientation.smoothstep(-0.25, 0.75),
+        );
+
+        const mat = new THREE.MeshStandardNodeMaterial();
+        mat.lightsNode = lights([earthSunLight]);
+        const dayTex = earthDayTex ? texture(earthDayTex) : vec4(0.16, 0.29, 0.54, 1.0);
+        mat.colorNode = dayTex;
+        // карта отражений Solar System Scope: вода белая, суша чёрная -> вода глаже
+        const water = earthSpecTex ? texture(earthSpecTex).r : float(0.0);
+        // неоднородная вода: крупные «ветровые поля» (сотни км, медленно меняются) + мелкие полосы ряби;
+        // шум привязан к поверхности Земли (положение на единичной сфере в осях шара)
+        const surf = normalize(positionLocal);
+        const tw = time.mul(0.004);
+        const windField = mx_fractal_noise_float(surf.mul(4.0).add(vec3(tw, tw.mul(0.7), tw.mul(-0.5))), 4, 2.0, 0.5, 1.0);
+        const ripples = mx_fractal_noise_float(surf.mul(vec3(38.0, 90.0, 38.0)).add(vec3(0.0, tw.mul(3.0), 0.0)), 3, 2.0, 0.5, 1.0);
+        const calm = smoothstep(-0.35, 0.45, windField); // 0 — штиль, 1 — ветер
+        const waterRough = clamp(
+          roughnessLow.add(calm.mul(0.35).add(ripples.mul(0.05)).mul(waterVar)), // штиль ~0.2 (яркое серебро), ветер до ~0.55
+          0.08,
+          0.9,
+        );
+        mat.roughnessNode = mix(roughnessHigh, waterRough, water);
+        if (earthNormalTex) mat.normalNode = normalMap(texture(earthNormalTex), vec2(0.6, 0.6));
+
+        const dayStrength = sunOrientation.smoothstep(-0.25, 0.5);
+        // ночью без текстуры огней: едва различимые материки, огни — отдельный слой поселений
+        const nightBase = dayTex.rgb.mul(0.012);
+        const atmosphereDayStrength = sunOrientation.smoothstep(-0.5, 1);
+        const atmosphereMix = atmosphereDayStrength.mul(fresnel.pow(2)).clamp(0, 1);
+        let finalOutput = mix(nightBase, output.rgb, dayStrength);
+        finalOutput = mix(finalOutput, atmosphereColor, atmosphereMix);
+        // в примере кадр без тонмаппинга с выводом в sRGB — делаем то же в материале
+        // мягкое ограничение бликов: выше 0.7 значения плавно сжимаются (верх ~1.05) — серебро, а не выгоревшее белое
+        const over = max(finalOutput.sub(0.7), vec3(0.0));
+        const knee = min(finalOutput, vec3(0.7)).add(over.div(over.div(0.35).add(1.0)));
+        mat.outputNode = vec4(sRGBTransferOETF(knee), output.a);
+        globe.add(new THREE.Mesh(geo, mat));
+
+        // атмосфера — как в примере: оболочка 1.04, обратная сторона, прозрачность по Френелю
+        const atmMat = new THREE.MeshBasicNodeMaterial({
+          side: THREE.BackSide,
+          transparent: true,
+          depthWrite: false,
+          fog: false,
+        });
+        let alpha = fresnel.remap(0.73, 1, 1, 0).pow(3);
+        alpha = alpha.mul(sunOrientation.smoothstep(-0.5, 1));
+        atmMat.outputNode = vec4(sRGBTransferOETF(atmosphereColor), alpha);
+        const atm = new THREE.Mesh(geo, atmMat);
+        atm.scale.setScalar(1.04);
+        globe.add(atm);
+
+        // облака — отдельный слой с живой картой (пока не загрузилась — скрыт)
+        const cloudNode = texture(blankCloudTex);
+        cloudTexNodes.push(cloudNode);
+        const cloudMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, fog: false });
+        const cLit = normalWorldGeometry.dot(sunDirU).smoothstep(-0.2, 0.4);
+        const cCol = mix(vec3(0.0015, 0.0017, 0.0025), vec3(1.0), cLit); // ночью почти чёрные (после sRGB ~2-3%)
+        cloudMat.outputNode = vec4(sRGBTransferOETF(cCol), cloudNode.a.mul(0.95));
+        cloudsMesh = new THREE.Mesh(new THREE.SphereGeometry(globeR * 1.012, 128, 64), cloudMat);
+        cloudsMesh.visible = false;
+        cloudsMesh.renderOrder = 2;
+        globe.add(cloudsMesh);
+
+        makeCityLights();
+      }
+
+      // --- Огни поселений: точки по координатам GeoNames, мерцание и ночь — в шейдере ---
+      function makeCityLights() {
+        if (!cityData) return;
+        const n = cityData.length / 3;
+        const R = globeR * 1.0015;
+        const pos = new Float32Array(n * 12);
+        const aCity = new Float32Array(n * 16);
+        const aCorner = new Float32Array(n * 8);
+        const aUvC = new Float32Array(n * 8);
+        const idx = new Uint32Array(n * 6);
+        const corners = [-1, -1, 1, -1, 1, 1, -1, 1];
+        for (let i = 0; i < n; i++) {
+          const latD = cityData[i * 3], lonD = cityData[i * 3 + 1], pop = cityData[i * 3 + 2];
+          const lat = latD * D2R, lon = lonD * D2R, cl = Math.cos(lat);
+          // оси шара SphereGeometry: долгота 0 -> +x, 90° в.д. -> -z, север -> +y
+          const dx = cl * Math.cos(lon), dy = Math.sin(lat), dz = -cl * Math.sin(lon);
+          const b = Math.min(Math.max((Math.log10(pop) - 3) / 4.4, 0), 1); // 1 тыс. -> 0, ~25 млн -> 1
+          const u = (lonD + 180) / 360, v = (latD + 90) / 180;
+          for (let k = 0; k < 4; k++) {
+            const vi = i * 4 + k;
+            pos[vi * 3] = dx * R;
+            pos[vi * 3 + 1] = dy * R;
+            pos[vi * 3 + 2] = dz * R;
+            aCity[vi * 4] = dx;
+            aCity[vi * 4 + 1] = dy;
+            aCity[vi * 4 + 2] = dz;
+            aCity[vi * 4 + 3] = b;
+            aCorner[vi * 2] = corners[k * 2];
+            aCorner[vi * 2 + 1] = corners[k * 2 + 1];
+            aUvC[vi * 2] = u;
+            aUvC[vi * 2 + 1] = v;
+          }
+          const o = i * 6, q = i * 4;
+          idx[o] = q;
+          idx[o + 1] = q + 1;
+          idx[o + 2] = q + 2;
+          idx[o + 3] = q;
+          idx[o + 4] = q + 2;
+          idx[o + 5] = q + 3;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("aCity", new THREE.BufferAttribute(aCity, 4));
+        geo.setAttribute("aCorner", new THREE.BufferAttribute(aCorner, 2));
+        geo.setAttribute("aCityUv", new THREE.BufferAttribute(aUvC, 2));
+        geo.setIndex(new THREE.BufferAttribute(idx, 1));
+        geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), R * 1.1);
+
+        const Cn = attribute("aCity", "vec4");
+        const K = attribute("aCorner", "vec2");
+        const CU = attribute("aCityUv", "vec2");
+        cityPxU = uniform(new THREE.Vector2(2 / innerWidth, 2 / innerHeight)); // 1 CSS-пиксель в NDC
+
+        // вершина: экранный квадрат постоянного размера в пикселях вокруг точки на поверхности
+        const clip = cameraProjectionMatrix.mul(modelViewMatrix.mul(vec4(Cn.xyz.mul(R), 1.0)));
+        const sizePx = mix(float(1.0), float(3.2), Cn.w);
+        const offs = K.mul(cityPxU).mul(sizePx).mul(clip.w);
+        // ночь: направление точки в мире против направления на Солнце (с сумерками)
+        const dirW = normalize(modelWorldMatrix.mul(vec4(Cn.xyz, 0.0)).xyz);
+        const night = float(1.0).sub(smoothstep(-0.12, 0.03, dot(dirW, sunDirU))).toVarying("vCityNight");
+
+        // фрагмент: мягкая точка + мерцание со своим ритмом у каждого поселения
+        const core = float(1.0).sub(smoothstep(0.0, 1.0, length(K)));
+        const h = fract(sin(dot(CU, vec2(12.9898, 78.233))).mul(43758.5453));
+        const h2 = fract(h.mul(7.13).add(0.37));
+        const twinkle = sin(time.mul(h2.mul(4.0).add(1.2)).add(h.mul(40.0))).mul(0.35).add(0.65);
+        const cloudNode = texture(blankCloudTex, CU);
+        cloudTexNodes.push(cloudNode);
+        const underCloud = float(1.0).sub(cloudNode.a.mul(0.75));
+        const intensity = night.mul(mix(float(0.35), float(1.0), Cn.w)).mul(twinkle).mul(underCloud).mul(cityGain);
+        const lightColor = mix(vec3(1.0, 0.55, 0.18), vec3(1.0, 0.86, 0.6), Cn.w);
+
+        const mat = new THREE.MeshBasicNodeMaterial({
+          transparent: true,
+          premultipliedAlpha: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          depthTest: true,
+          fog: false,
+        });
+        mat.vertexNode = vec4(clip.xy.add(offs), clip.zw);
+        mat.colorNode = lightColor;
+        mat.opacityNode = core.mul(core).mul(intensity);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 3;
+        globe.add(mesh);
+        console.log("[diag] огни поселений:", n);
+      }
+
+      // --- Живая карта облаков (CORS разрешён сервисом) ---
+      // Наблюдатель раз в минуту запрашивает только заголовки (HEAD). Сервис не отдаёт Last-Modified,
+      // а ETag закрыт для JavaScript (нет Access-Control-Expose-Headers), поэтому признак новой версии —
+      // Content-Length (размер PNG меняется с каждым снимком). Картинка 4K перекачивается только при смене.
+      let cloudsVersion = null; // размер текущего снимка
+      async function loadClouds(version) {
+        const tex = await loadTexturePromise(`${CLOUD_URL}?v=${encodeURIComponent(version)}`);
+        tex.anisotropy = 8;
+        for (const node of cloudTexNodes) node.value = tex;
+        cloudsMesh.visible = true;
+        cloudsLoadedAt = new Date();
+        console.log("[diag] облака загружены, снимок:", version);
+      }
+      async function checkClouds() {
+        try {
+          const r = await fetch(CLOUD_URL, { method: "HEAD", cache: "no-store" });
+          const len = r.ok ? r.headers.get("content-length") : null;
+          const version = len || String(Math.floor(Date.now() / CLOUD_REFRESH_MS)); // запасной вариант — раз в 30 мин
+          if (version !== cloudsVersion) {
+            await loadClouds(version);
+            cloudsVersion = version;
+          }
+        } catch (e) {
+          console.warn("[diag] проверка облаков не удалась:", e);
+        }
+      }
+
+      // --- Луна: сфера + текстура, положение по реальной дате, видимой стороной к Земле ---
+      function makeMoon() {
+        const moonR = globeR * 0.27; // Луна ~0.27x Земли (реальный размер)
+        const geo = new THREE.SphereGeometry(moonR, 48, 32); // сглажена
+
+        const mColor = moonTex
+          ? texture(moonTex, uv())
+          : vec4(0.78, 0.78, 0.78, 1.0);
+        // Освещение как у Земли: мир-пространство, свет из Солнца (origin)
+        const toSun = normalize(sub(vec3(0.0, 0.0, 0.0), positionWorld));
+        const diff = max(dot(normalWorld, toSun), 0.0);
+        const dayC = mul(mColor, vec4(1.35, 1.35, 1.35, 1.0));
+        const nightC = vec4(0.015, 0.015, 0.02, 1.0);
+        const mEmis = mix(nightC, dayC, diff);
+
+        const mMat = new THREE.MeshStandardNodeMaterial({
+          color: new THREE.Color(0, 0, 0),
+          metalness: 0.0,
+          roughness: 1.0,
+          emissiveNode: mEmis,
+        });
+        mMat.lightsNode = lights([]);
+        mMat.outputNode = displayOut();
+        moonMesh = new THREE.Mesh(geo, mMat);
+        moonMesh.frustumCulled = false;
+        scene.add(moonMesh);
+      }
+
+      // --- Реальное время: Земля, её поворот и Луна по дате (Astronomy Engine) ---
+      // Система сцены = истинная эклиптика даты (ECT): three (x, y, z) = ECT (x, z, -y), север эклиптики -> +y.
+      const toScene = (v, out) => out.set(v.x, v.z, -v.y);
+      const _e = new THREE.Vector3(), _mv = new THREE.Vector3();
+      const _ax = new THREE.Vector3(), _ay = new THREE.Vector3(), _az = new THREE.Vector3();
+      const _m4 = new THREE.Matrix4();
+      function updateAstronomy(date) {
+        const t = Astronomy.MakeTime(date);
+        const rJ = Astronomy.Rotation_EQJ_ECT(t);
+        // Земля относительно Солнца = минус геоцентрический вектор Солнца
+        const sunGeo = Astronomy.RotateVector(rJ, Astronomy.GeoVector(Astronomy.Body.Sun, t, true));
+        toScene(sunGeo, _e).negate().normalize();
+        globe.position.copy(_e).multiplyScalar(orbitR);
+        sunDirU.value.copy(_e).negate();
+
+        // поворот Земли: истинный экватор даты (EQD) повёрнут на истинное звёздное время Гринвича
+        const g = Astronomy.SiderealTime(t) * 15 * D2R;
+        const rD = Astronomy.Rotation_EQD_ECT(t);
+        const lon0 = Astronomy.RotateVector(rD, new Astronomy.Vector(Math.cos(g), Math.sin(g), 0, t));
+        const lon90 = Astronomy.RotateVector(rD, new Astronomy.Vector(-Math.sin(g), Math.cos(g), 0, t));
+        const north = Astronomy.RotateVector(rD, new Astronomy.Vector(0, 0, 1, t));
+        // оси шара: +x = долгота 0, +y = северный полюс, +z = долгота 90° з.д.
+        toScene(lon0, _ax);
+        toScene(north, _ay);
+        toScene(lon90, _az).negate();
+        _m4.makeBasis(_ax, _ay, _az);
+        globe.quaternion.setFromRotationMatrix(_m4);
+
+        // Луна: геоцентрическое направление по дате, расстояние условное (MOON_DIST_FRAC радиусов Земли)
+        const m = Astronomy.RotateVector(rJ, Astronomy.GeoMoon(t));
+        toScene(m, _mv).normalize().multiplyScalar(globeR * MOON_DIST_FRAC);
+        moonMesh.position.copy(globe.position).add(_mv);
+        _ax.copy(_mv).negate().normalize(); // +x Луны (долгота 0, видимая сторона) — к Земле
+        _ay.set(0, 1, 0).addScaledVector(_ax, -_ax.y).normalize();
+        _az.crossVectors(_ax, _ay);
+        _m4.makeBasis(_ax, _ay, _az);
+        moonMesh.quaternion.setFromRotationMatrix(_m4);
+      }
+
+      // =====================================================================
+      // ОКНО НЕБА по клику на Землю — отдельный холст и рендерер (WebGPU).
+      // Солнце и Луна: Astronomy Engine (Equator с топоцентрической поправкой + Horizon с рефракцией).
+      // Звёзды до 6m и линии созвездий: d3-celestial (BSD-3), J2000 -> горизонт через Rotation_EQJ_HOR.
+      // Небо: SkyMesh (модель Престама) с облачностью из Open-Meteo (текущие данные по точке).
+      // Оси окна: +y — зенит, -z — север, +x — восток.
+      // =====================================================================
+      const SKY_R = 800; // радиус небесной сферы в окне
+      const MOON_VIS_DEG = 5.0; // видимый диаметр Луны в окне (реальный ~0.52°, увеличен для наглядности)
+      const SUN_VIS_DEG = 3.5; // видимый диаметр солнечного диска в окне (реальный ~0.53°)
+      const sky = {
+        open: false,
+        ready: null,
+        lat: 0,
+        lon: 0,
+        tz: "UTC",
+        cloud: null,
+        yaw: 0,
+        pitch: 0.25,
+        fov: 70,
+        lastInfo: 0,
+        lastWeather: 0,
+      };
+      const CREATURES = { fishEvery: 9 }; // средний интервал появления рыбки, с (0 — выкл.)
+      const SKY_SIZE = [600, 360]; // окно неба, px
+      const skyEl = {
+        panel: document.getElementById("skyPanel"),
+        canvas: document.getElementById("skyCanvas"),
+        title: document.getElementById("skyTitle"),
+        info: document.getElementById("skyInfo"),
+        close: document.getElementById("skyClose"),
+        btnSun: document.getElementById("btnSun"),
+        btnMoon: document.getElementById("btnMoon"),
+        markSun: document.getElementById("markSun"),
+        markMoon: document.getElementById("markMoon"),
+      };
+      function lookAtBody(h) {
+        sky.yaw = -h.azimuth * D2R;
+        sky.pitch = Math.max(-0.3, Math.min(1.55, h.altitude * D2R));
+      }
+      skyEl.markSun.addEventListener("click", () => sky.sunH && lookAtBody(sky.sunH));
+      skyEl.markMoon.addEventListener("click", () => sky.moonH && lookAtBody(sky.moonH));
+      skyEl.btnSun.addEventListener("click", () => sky.sunH && lookAtBody(sky.sunH));
+      skyEl.btnMoon.addEventListener("click", () => sky.moonH && lookAtBody(sky.moonH));
+      // значок у края окна в сторону светила, если оно над горизонтом и вне кадра
+      const _cv = new THREE.Vector3();
+      function placeMark(el, dir, above) {
+        if (!above) return (el.hidden = true);
+        const cam = sky.camera;
+        _cv.copy(dir).applyMatrix4(cam.matrixWorldInverse); // в координатах камеры
+        const w = skyEl.canvas.clientWidth, h = skyEl.canvas.clientHeight;
+        if (_cv.z < 0) {
+          const ndc = _cv.clone().applyMatrix4(cam.projectionMatrix);
+          if (Math.abs(ndc.x) < 0.97 && Math.abs(ndc.y) < 0.97) return (el.hidden = true); // в кадре
+        }
+        let dx = _cv.x, dy = -_cv.y;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len;
+        dy /= len;
+        const mx = w / 2 - 20, my = h / 2 - 20;
+        const k = Math.min(mx / Math.max(Math.abs(dx), 1e-6), my / Math.max(Math.abs(dy), 1e-6));
+        el.style.left = `${w / 2 + dx * k}px`;
+        el.style.top = `${h / 2 + dy * k}px`;
+        el.hidden = false;
+      }
+      const horDir = (altDeg, azDeg, out) => {
+        const a = altDeg * D2R, z = azDeg * D2R;
+        return out.set(Math.cos(a) * Math.sin(z), Math.sin(a), -Math.cos(a) * Math.cos(z));
+      };
+      // горизонтальная система Astronomy Engine (x — север, y — запад, z — зенит) -> оси окна
+      const horToSky = (v, out) => out.set(-v.y, v.z, -v.x);
+
+      function makeLabel(text) {
+        const c = document.createElement("canvas");
+        c.width = c.height = 128;
+        const g = c.getContext("2d");
+        g.font = "bold 76px sans-serif";
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        // тёмная обводка читается на светлом дневном небе, белая заливка — на ночном
+        g.lineJoin = "round";
+        g.lineWidth = 14;
+        g.strokeStyle = "rgba(0,0,0,0.9)";
+        g.strokeText(text, 64, 68);
+        g.fillStyle = "rgba(255,255,255,1)";
+        g.fillText(text, 64, 68);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        // sizeAttenuation: false — размер на экране не зависит от зума камеры
+        const m = new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, fog: false, sizeAttenuation: false });
+
+        const s = new THREE.Sprite(m);
+        s.scale.setScalar(0.22); // постоянный экранный размер
+        s.center.set(0.5, 0.17); // крепление у нижнего края глифа: буква стоит на горизонте
+        return s;
+      }
+
+      async function initSky() {
+        const r = new THREE.WebGPURenderer({ canvas: skyEl.canvas, antialias: true });
+        r.setPixelRatio(devicePixelRatio);
+        const w = skyEl.canvas.clientWidth, h = skyEl.canvas.clientHeight;
+        r.setSize(w, h, false);
+        await r.init();
+        // тонмаппинг ACES применяется только к небу (в его материале), а не ко всему кадру —
+        // иначе Солнце, Луна и звёзды обесцвечиваются до белого
+        r.toneMapping = THREE.NoToneMapping;
+        r.outputColorSpace = THREE.SRGBColorSpace;
+        sky.renderer = r;
+        const scene = new THREE.Scene();
+        sky.scene = scene;
+        sky.camera = new THREE.PerspectiveCamera(sky.fov, w / h, 0.5, 5000);
+        sky.camera.rotation.order = "YXZ";
+        sky.pxU = uniform(new THREE.Vector2(2 / w, 2 / h));
+        sky.starVis = uniform(0);
+        sky.cloudDim = uniform(1);
+        sky.sunDirU = uniform(new THREE.Vector3(0, 1, 0));
+        sky.groundColor = uniform(new THREE.Color(0.02, 0.022, 0.025));
+
+        // небо
+        const sm = new SkyMesh();
+        sm.scale.setScalar(SKY_R * 2);
+        sm.turbidity.value = 2.0;
+        sm.rayleigh.value = 1.0;
+        sm.mieCoefficient.value = 0.0006; // слабое рассеяние вокруг Солнца — без белого пятна
+        sm.mieDirectionalG.value = 0.95; // компактнее свечение вокруг Солнца, чтобы не размывало диск
+        sm.cloudCoverage.value = 0.0;
+        sm.cloudDensity.value = 0.4;
+        sm.cloudElevation.value = 0.5;
+        // ночная тёмно-синяя подсветка неба: у горизонта светлее, к зениту темнее
+        sky.nightU = uniform(0);
+        const viewDir = normalize(positionWorld.sub(cameraPosition));
+        const nightCol = mix(vec3(0.03, 0.06, 0.17), vec3(0.008, 0.02, 0.075), smoothstep(0.0, 0.6, max(viewDir.y, 0.0)));
+        const skyCol = sm.material.colorNode.add(vec4(nightCol.mul(sky.nightU), 0.0));
+        sm.material.colorNode = vec4(acesFilmicToneMapping(skyCol.rgb, float(0.35)), 1.0); // ACES только для неба
+        scene.add(sm);
+        sky.mesh = sm;
+
+        // --- Объёмные облака (лучевой марш на TSL) ---
+        // Подход — по справочнику CK42BB/procedural-clouds-threejs (MIT): плотность из многооктавного шума
+        // (форма + эрозия краёв), вторичный марш к Солнцу (самозатенение, закон Бугера–Ламберта + «пудра»),
+        // двухлепестковая фаза Хеньи–Гринстейна (светящиеся края против солнца), цвет по высоте Солнца.
+        // Наблюдатель — в начале координат, единица сцены — метр по высоте слоя облаков.
+        {
+          const cu = {
+            base: uniform(1500),
+            top: uniform(4200),
+            coverage: uniform(0.0), // 0..1 — из Open-Meteo
+            absorb: uniform(0.0045), // коэффициент ослабления, 1/м
+            sunDir: uniform(new THREE.Vector3(0, 1, 0)),
+            sunCol: uniform(new THREE.Color(1, 0.97, 0.92)),
+            amb: uniform(new THREE.Color(0.55, 0.62, 0.75)),
+            wind: uniform(new THREE.Vector3(14, 0, 5)), // м/с
+          };
+          sky.cloudU = cu;
+          const tw = cu.wind.mul(time);
+
+          // крупная форма облаков: покрытие + профиль по высоте (плоское основание, округлый верх)
+          const shapeD = Fn(([pp]) => {
+            const n = mx_fractal_noise_float(pp.add(tw).mul(0.00028), 3, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
+            const cov = max(cu.coverage, 0.02);
+            const sh = clamp(n.sub(float(1.0).sub(cov)).div(cov), 0.0, 1.0);
+            const hh = clamp(pp.y.sub(cu.base).div(cu.top.sub(cu.base)), 0.0, 1.0);
+            const prof = smoothstep(0.0, 0.1, hh).mul(float(1.0).sub(smoothstep(0.45, 1.0, hh)));
+            return sh.mul(prof).mul(smoothstep(0.0, 0.02, cu.coverage));
+          });
+          // полная плотность: форма минус мелкая эрозия (сильнее по краям, слабее в ядре)
+          const erodeD = Fn(([pp, sh]) => {
+            const det = mx_fractal_noise_float(pp.add(tw.mul(1.7)).mul(0.0021), 2, 2.0, 0.5, 1.0).mul(0.5).add(0.5);
+            return clamp(sh.sub(det.mul(0.38).mul(float(1.0).sub(sh))), 0.0, 1.0);
+          });
+          const hg = (c, g) => float(1 - g * g).div(float(4 * Math.PI).mul(pow(float(1 + g * g).sub(c.mul(2 * g)), 1.5)));
+
+          const cloudNode = Fn(() => {
+            const rd = normalize(positionWorld.sub(cameraPosition));
+            const res = vec4(0.0).toVar();
+            If(rd.y.greaterThan(0.015), () => {
+              const STEPS = 26;
+              const t0 = cu.base.div(rd.y);
+              const t1 = min(cu.top.div(rd.y), t0.add(16000.0));
+              const dt = t1.sub(t0).div(STEPS);
+              // сдвиг начала по экрану — против полос
+              const jit = fract(sin(dot(screenUV, vec2(12.9898, 78.233))).mul(43758.5453));
+              const t = t0.add(dt.mul(jit)).toVar();
+              const cosT = dot(rd, cu.sunDir);
+              const phase = hg(cosT, 0.6).mul(0.7).add(hg(cosT, -0.3).mul(0.3)).mul(4 * Math.PI); // ≈1 для изотропного
+              const ls = cu.top.sub(cu.base).div(6.0); // шаг вторичного марша к Солнцу
+              Loop(STEPS, () => {
+                If(res.a.greaterThan(0.985), () => {
+                  Break();
+                });
+                const pp = rd.mul(t);
+                // сначала дешёвая крупная форма; детализация — только там, где облако есть
+                const sh = shapeD(pp);
+                const d = erodeD(pp, sh);
+                If(sh.greaterThan(0.004).and(d.greaterThan(0.003)), () => {
+                  const ld = float(0.0).toVar();
+                  Loop(3, ({ i }) => {
+                    ld.addAssign(shapeD(pp.add(cu.sunDir.mul(ls.mul(float(i).add(0.6))))));
+                  });
+                  const tau = ld.mul(ls).mul(cu.absorb);
+                  const beer = exp(tau.negate());
+                  const powder = float(1.0).sub(exp(tau.mul(-2.0)));
+                  const light = mix(beer, beer.mul(powder), 0.5);
+                  const hh = clamp(pp.y.sub(cu.base).div(cu.top.sub(cu.base)), 0.0, 1.0);
+                  const col = cu.sunCol.mul(light.mul(phase).mul(1.1)).add(cu.amb.mul(hh.mul(0.45).add(0.3)));
+                  const a = float(1.0).sub(exp(d.mul(dt).mul(cu.absorb).negate()));
+                  res.rgb.addAssign(col.mul(a).mul(float(1.0).sub(res.a)));
+                  res.a.addAssign(a.mul(float(1.0).sub(res.a)));
+                });
+                t.addAssign(dt);
+              });
+              // у горизонта облака растворяются в дымке
+              res.mulAssign(smoothstep(0.015, 0.09, rd.y));
+            });
+            return res;
+          })();
+
+          const cm = new THREE.MeshBasicNodeMaterial({
+            side: THREE.BackSide,
+            transparent: true,
+            depthWrite: false,
+            fog: false,
+          });
+          cm.colorNode = cloudNode.rgb.div(max(cloudNode.a, 0.0001));
+          cm.opacityNode = cloudNode.a;
+          const vc = new THREE.Mesh(new THREE.SphereGeometry(SKY_R * 0.85, 48, 24), cm);
+          vc.renderOrder = 3; // после звёзд и Солнца: облака их закрывают
+          vc.frustumCulled = false;
+          scene.add(vc);
+          sky.vclouds = vc;
+        }
+
+        // ровная земля до горизонта
+        const groundMat = new THREE.MeshBasicNodeMaterial({ fog: false });
+        sky.dayLight = uniform(1);
+        {
+          const gn = mx_fractal_noise_float(positionWorld.xz.mul(0.08), 4, 2.0, 0.5, 1.0);
+          const gn2 = mx_fractal_noise_float(positionWorld.xz.mul(0.7), 3, 2.0, 0.5, 1.0);
+          // тёмная земля у корней: просветы между травинками читаются как тень, а не как пустая земля
+          groundMat.colorNode = mix(vec3(0.018, 0.035, 0.01), vec3(0.05, 0.08, 0.022), smoothstep(-0.6, 0.6, gn))
+            .mul(gn2.mul(0.18).add(0.9))
+            .mul(sky.dayLight);
+        }
+        const ground = new THREE.Mesh(new THREE.CircleGeometry(SKY_R * 1.2, 96), groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -2;
+        ground.renderOrder = 5;
+        scene.add(ground);
+        sky.ground = ground;
+
+        // вода (WaterMesh, как в примере three.js webgpu_ocean): зеркальное отражение неба, Солнца, Луны и звёзд
+        // через reflector(), рябь из 4 слоёв карты нормалей, Френель, солнечная/лунная дорожка
+        const wn = new THREE.TextureLoader().load("textures/waternormals.jpg");
+        wn.wrapS = wn.wrapT = THREE.RepeatWrapping;
+        sky.water = new WaterMesh(new THREE.PlaneGeometry(SKY_R * 2.4, SKY_R * 2.4), {
+          waterNormals: wn,
+          sunDirection: new THREE.Vector3(0, 1, 0),
+          sunColor: 0xffffff,
+          waterColor: 0x00303a,
+          distortionScale: 3.7,
+          size: 4.0,
+          resolutionScale: 0.5,
+        });
+        sky.water.rotation.x = -Math.PI / 2;
+        sky.water.position.y = -2;
+        sky.water.visible = false;
+        scene.add(sky.water);
+
+        // маска «вода/суша» по карте отражений Земли (вода — белая), 1024×512 в памяти
+        {
+          const img = new Image();
+          img.src = "textures/earth_specular_4k.jpg";
+          await img.decode();
+          const c = document.createElement("canvas");
+          c.width = 1024;
+          c.height = 512;
+          const g = c.getContext("2d", { willReadFrequently: true });
+          g.drawImage(img, 0, 0, 1024, 512);
+          sky.waterMask = g.getImageData(0, 0, 1024, 512).data;
+        }
+
+        // свет для травы и моделей животных (небо и вода — собственные шейдеры, его не используют)
+        sky.sunLightM = new THREE.DirectionalLight(0xffffff, 2.5);
+        sky.skyLightM = new THREE.HemisphereLight(0xbfd8ff, 0x3a4a20, 0.6);
+        scene.add(sky.sunLightM, sky.skyLightM);
+
+        // --- трава: threejs-grass (AskAlice, Apache-2.0) — TSL/WebGPU, пресеты реальных видов,
+        // пучки, ветер порывами, просвечивание на солнце; плоская земля на y = −2
+        sky.grassField = await Grass.create({
+          camera: sky.camera, // камера окна неба (не основной сцены)
+          scene, // сцена окна неба
+          renderer: r,
+          terrain: () => -2,
+          preset: "perennialRyegrass",
+          bladeHeight: 0.45,
+          density: grassPresets.perennialRyegrass.density * 3.5, // гуще
+          // вдали прореживание слабее, чем по умолчанию (8 м — 100%, 25 м — 60%, 60 м — 25%, 120 м — 10%)
+          lods: [
+            { distance: 8, density: 1, segments: 5 },
+            { distance: 25, density: 0.6, segments: 3 },
+            { distance: 60, density: 0.25, segments: 2 },
+            { distance: 120, density: 0.1, segments: 1 },
+          ],
+          bladeWidth: grassPresets.perennialRyegrass.bladeWidth * 0.6, // тоньше
+          tileSize: 20,
+          maxDistance: 60,
+          sun: sky.sunLightM,
+          castShadow: false,
+          receiveShadow: false,
+        });
+
+        // --- рыбка: «Atlantic Mackerel (Animated and Game-ready)», 1shxxn, Sketchfab, CC BY 4.0;
+        // скелет 25 костей, анимации Swimming / Idle / Death
+        new GLTFLoader().load("assets/atlantic_mackerel_animated_and_game-ready.glb", (gltf) => {
+          const model = gltf.scene;
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          model.position.sub(center); // центр модели в начале координат
+          const inner = new THREE.Group();
+          inner.add(model);
+          // длинная ось модели -> +X обёртки
+          if (size.z > size.x) inner.rotation.y = Math.PI / 2 + FISH_FLIP;
+          const len = Math.max(size.x, size.z);
+          inner.scale.setScalar(0.75 / len); // скумбрия ~0.75 м (настоящая 30–45 см — иначе не разглядеть)
+          const fish = new THREE.Group();
+          fish.add(inner);
+          fish.visible = false;
+          scene.add(fish);
+          const mixer = new THREE.AnimationMixer(model);
+          const swim = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, "Swimming") || gltf.animations[0]);
+          swim.timeScale = 2.2; // в прыжке рыба бьёт хвостом чаще
+          swim.play();
+          sky.fish = { obj: fish, inner, mixer, last: performance.now(), t0: -1, next: performance.now() + 3000 };
+          console.log("[diag] рыбка загружена, размер модели:", size.toArray().map((v) => +v.toFixed(3)));
+        });
+
+        // --- стадо: бизоны и носороги постоянно бродят вокруг, обходят друг друга и наблюдателя ---
+        // бизон: «Animated Free Bison», AneesAnimates, Sketchfab, CC BY 4.0
+        // носорог: «Rhino Animation Walk», GremorySaiyan, Sketchfab, CC BY 4.0
+        sky.herd = [];
+        const SPECIES = [
+          // footSpeed — замеренная скорость стопы на земле при темпе анимации 1 (м/с, в масштабе модели);
+          // animScale — ускорение анимации (у бизона клип очень медленный: цикл 4.17 с -> ~1.3 с)
+          // spacing — желаемое расстояние между особями своего вида, м; cohesion — сила тяги к центру группы
+          // radius — половина длины тела: столкновение исключено при любом повороте; mass — кто кого сдвигает
+          { key: "bison", url: "assets/animated_free_bison.glb", count: 4, length: 3.0, footSpeed: 0.16, animScale: 3.2, radius: 1.55, mass: 1.0, spacing: 4.5, cohesion: 1.0, specGloss: true },
+          { key: "rhino", url: "assets/rhino_animation_walk.glb", count: 2, length: 3.8, footSpeed: 0.86, animScale: 1.0, radius: 1.95, mass: 2.2, spacing: 8.0, cohesion: 0.6 },
+        ];
+        const loadSpecies = (sp) =>
+          new Promise((resolve) => {
+            new GLTFLoader().load(sp.url, async (gltf) => {
+              if (sp.specGloss) {
+                // материал в устаревшем KHR_materials_pbrSpecularGlossiness (three.js его не читает):
+                // берём текстуру окраски вручную, шерсть — матовая
+                const tex = await gltf.parser.getDependency("texture", 0);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                gltf.scene.traverse((o) => {
+                  if (o.isMesh) {
+                    o.material.map = tex;
+                    o.material.color.set(0xffffff);
+                    o.material.metalness = 0;
+                    o.material.roughness = 0.92;
+                    o.material.needsUpdate = true;
+                  }
+                });
+              }
+              resolve(gltf);
+            });
+          });
+        (async () => {
+          const rnd = (a, b) => a + Math.random() * (b - a);
+          sky.groups = {};
+          for (const sp of SPECIES) {
+            const gltf = await loadSpecies(sp);
+            const gAng = rnd(0, Math.PI * 2), gR = rnd(18, 28);
+            const gCenter = new THREE.Vector2(Math.cos(gAng) * gR, Math.sin(gAng) * gR);
+            const gHeading = gAng + Math.PI / 2 + rnd(-0.5, 0.5); // идут примерно по кругу вокруг наблюдателя
+            sky.groups[sp.key] = { target: null, retarget: 0 };
+            gltf.scene.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(gltf.scene);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const longX = size.x > size.z;
+            const scale = sp.length / Math.max(size.x, size.z);
+            for (let n = 0; n < sp.count; n++) {
+              const model = SkeletonUtils.clone(gltf.scene);
+              model.position.set(-center.x, -box.min.y, -center.z);
+              const inner = new THREE.Group();
+              inner.add(model);
+              if (longX) inner.rotation.y = -Math.PI / 2; // длинная ось -> +Z (направление хода)
+              const sizeK = rnd(0.92, 1.08); // особи чуть разного размера
+              inner.scale.setScalar(scale * sizeK);
+              const obj = new THREE.Group();
+              obj.add(inner);
+              scene.add(obj);
+              const mixer = new THREE.AnimationMixer(model);
+              const action = mixer.clipAction(gltf.animations[0]);
+              action.play();
+              action.time = rnd(0, gltf.animations[0].duration); // не в ногу
+              const oa = rnd(0, Math.PI * 2), orr = rnd(0.4, 1.0) * sp.spacing * 0.9 * Math.sqrt(n + 1);
+              const heading = gHeading + rnd(-0.15, 0.15);
+              sky.herd.push({
+                sp, obj, inner, mixer, action,
+                pos: gCenter.clone().add(new THREE.Vector2(Math.cos(oa) * orr, Math.sin(oa) * orr)),
+                heading,
+                dir: new THREE.Vector2(Math.sin(heading), Math.cos(heading)), // сглаженное желаемое направление
+                target: null,
+                speed: sp.footSpeed * sp.animScale * sizeK, // шаг пропорционален размеру особи
+                radius: sp.radius * sizeK,
+                retarget: 0,
+              });
+            }
+            console.log("[diag] стадо:", sp.key, "x" + sp.count, "размер модели", size.toArray().map((v) => +v.toFixed(2)), "анимация", gltf.animations[0].name, gltf.animations[0].duration.toFixed(2) + " с");
+          }
+          sky.grassField.set({ interactors: sky.herd.map((h) => ({ object: h.obj, radius: h.sp.radius * 0.8 })), interactionStrength: 1.6 });
+        })();
+
+        // стороны света
+        for (const [txt, az] of [["N", 0], ["E", 90], ["S", 180], ["W", 270]]) {
+          const s = makeLabel(txt);
+          horDir(0, az, s.position).multiplyScalar(SKY_R * 0.7);
+          s.renderOrder = 6;
+          scene.add(s);
+          (sky.labels ||= []).push(s);
+        }
+
+        // небесная сфера J2000: звёзды и линии созвездий, ориентируется матрицей каждый кадр
+        const cel = new THREE.Group();
+        cel.matrixAutoUpdate = false;
+        scene.add(cel);
+        sky.celestial = cel;
+        const [stars, lines] = await Promise.all([
+          fetch("textures/sky/stars.6.json").then((x) => x.json()),
+          fetch("textures/sky/constellations.lines.json").then((x) => x.json()),
+        ]);
+        cel.add(makeStars(stars.features));
+        cel.add(makeConstellationLines(lines.features));
+
+        // Солнце: чёткий диск с потемнением к краю (рисуется непрозрачно, не «выгорает») + слабый ореол
+        {
+          const dc = document.createElement("canvas");
+          dc.width = dc.height = 256;
+          const g = dc.getContext("2d");
+          // кайма у края (потемнение к краю) и сплошной жёлтый диск с резким краем
+          g.fillStyle = "#ffa21f";
+          g.beginPath();
+          g.arc(128, 128, 124, 0, Math.PI * 2);
+          g.fill();
+          const gr = g.createRadialGradient(128, 128, 0, 128, 128, 118);
+          gr.addColorStop(0.0, "#fff3a8");
+          gr.addColorStop(0.55, "#ffe04a");
+          gr.addColorStop(1.0, "#ffc928");
+          g.fillStyle = gr;
+          g.beginPath();
+          g.arc(128, 128, 118, 0, Math.PI * 2);
+          g.fill();
+          const dt = new THREE.CanvasTexture(dc);
+          dt.colorSpace = THREE.SRGBColorSpace;
+          // непрозрачный жёлтый диск: цвет не смешивается с небом и не выгорает
+          const dmat = new THREE.SpriteMaterial({ map: dt, transparent: true, depthWrite: false, fog: false });
+          sky.sun = new THREE.Sprite(dmat);
+          sky.sun.renderOrder = 1; // до объёмных облаков (3): облака закрывают Солнце
+          scene.add(sky.sun);
+
+          const hc = document.createElement("canvas");
+          hc.width = hc.height = 256;
+          const h = hc.getContext("2d");
+          const hg = h.createRadialGradient(128, 128, 0, 128, 128, 128);
+          hg.addColorStop(0.0, "rgba(255,230,180,0.35)");
+          hg.addColorStop(0.25, "rgba(255,220,160,0.12)");
+          hg.addColorStop(0.6, "rgba(255,200,140,0.03)");
+          hg.addColorStop(1.0, "rgba(255,190,130,0)");
+          h.fillStyle = hg;
+          h.fillRect(0, 0, 256, 256);
+          const ht = new THREE.CanvasTexture(hc);
+          ht.colorSpace = THREE.SRGBColorSpace;
+          sky.sunHalo = new THREE.Sprite(
+            new THREE.SpriteMaterial({ map: ht, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
+          );
+          sky.sunHalo.renderOrder = 4;
+          sky.sunHalo.visible = false; // ореол убран: Солнце — чёткий жёлтый диск
+        }
+
+        // Луна
+        const moonR = SKY_R * 0.875 * Math.tan((MOON_VIS_DEG / 2) * D2R);
+        // днём тёмная сторона Луны не видна (перед ней светится атмосфера) — Луна добавляет свет к небу;
+        // depthWrite оставлен, чтобы Луна закрывала звёзды позади себя
+        const mm = new THREE.MeshBasicNodeMaterial({
+          fog: false,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: true,
+        });
+        const tex = moonTex ? texture(moonTex) : vec4(0.8, 0.8, 0.8, 1.0);
+        const lit = max(dot(normalWorld, sky.sunDirU), 0.0);
+        mm.colorNode = tex.rgb.mul(lit.mul(1.25).add(0.01)); // 0.01 — пепельный свет (отражённый от Земли)
+        mm.opacityNode = sky.cloudDim;
+        sky.moon = new THREE.Mesh(new THREE.SphereGeometry(moonR, 48, 32), mm);
+        sky.moon.renderOrder = 0; // раньше звёзд и линий, чтобы закрыть их глубиной
+        scene.add(sky.moon);
+
+        {
+          const [w, h] = SKY_SIZE;
+          skyEl.panel.style.width = `${w}px`;
+          skyEl.canvas.style.width = `${w}px`;
+          skyEl.canvas.style.height = `${h}px`;
+          sky.renderer.setSize(w, h, false);
+        }
+
+        // обзор мышью
+        let drag = null;
+        skyEl.canvas.addEventListener("pointerdown", (e) => {
+          drag = { x: e.clientX, y: e.clientY, yaw: sky.yaw, pitch: sky.pitch };
+          skyEl.canvas.setPointerCapture(e.pointerId);
+        });
+        skyEl.canvas.addEventListener("pointermove", (e) => {
+          if (!drag) return;
+          const k = (sky.fov * D2R) / skyEl.canvas.clientHeight;
+          sky.yaw = drag.yaw + (e.clientX - drag.x) * k;
+          sky.pitch = Math.max(-0.3, Math.min(1.55, drag.pitch + (e.clientY - drag.y) * k));
+        });
+        skyEl.canvas.addEventListener("pointerup", () => (drag = null));
+        skyEl.canvas.addEventListener(
+          "wheel",
+          (e) => {
+            e.preventDefault();
+            sky.fov = Math.max(15, Math.min(100, sky.fov * Math.exp(e.deltaY * 0.001)));
+          },
+          { passive: false },
+        );
+        skyEl.close.addEventListener("click", () => {
+          sky.open = false;
+          skyEl.panel.hidden = true;
+          if (sky.marker) sky.marker.visible = false;
+        });
+      }
+
+      // звёзды: экранные квадраты постоянного размера в пикселях
+      function makeStars(features) {
+        const n = features.length;
+        const pos = new Float32Array(n * 12), aSt = new Float32Array(n * 16), aK = new Float32Array(n * 12);
+        const idx = new Uint32Array(n * 6);
+        const corners = [-1, -1, 1, -1, 1, 1, -1, 1];
+        const col = new THREE.Color(), blue = new THREE.Color(0.62, 0.72, 1.0);
+        const white = new THREE.Color(1.0, 0.98, 0.95), orange = new THREE.Color(1.0, 0.7, 0.42);
+        for (let i = 0; i < n; i++) {
+          const [raDeg, decDeg] = features[i].geometry.coordinates;
+          const mag = features[i].properties.mag;
+          const bv = parseFloat(features[i].properties.bv) || 0.6;
+          const ra = raDeg * D2R, dec = decDeg * D2R;
+          // J2000 экваториальные: x — точка весеннего равноденствия, z — северный полюс мира
+          const x = Math.cos(dec) * Math.cos(ra), y = Math.cos(dec) * Math.sin(ra), z = Math.sin(dec);
+          const t = Math.min(Math.max((bv + 0.4) / 2.4, 0), 1);
+          if (t < 0.3) col.copy(blue).lerp(white, t / 0.3);
+          else col.copy(white).lerp(orange, (t - 0.3) / 0.7);
+          const bright = Math.min(Math.max(Math.pow(10, -0.4 * (mag - 2.0)), 0.12), 2.5);
+          const size = Math.min(Math.max(3.6 - 0.45 * mag, 1.2), 5.2);
+          for (let k = 0; k < 4; k++) {
+            const v = i * 4 + k;
+            pos[v * 3] = x * SKY_R;
+            pos[v * 3 + 1] = y * SKY_R;
+            pos[v * 3 + 2] = z * SKY_R;
+            aSt[v * 4] = col.r;
+            aSt[v * 4 + 1] = col.g;
+            aSt[v * 4 + 2] = col.b;
+            aSt[v * 4 + 3] = bright;
+            aK[v * 3] = corners[k * 2];
+            aK[v * 3 + 1] = corners[k * 2 + 1];
+            aK[v * 3 + 2] = size;
+          }
+          idx.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("aStar", new THREE.BufferAttribute(aSt, 4));
+        geo.setAttribute("aCornerPx", new THREE.BufferAttribute(aK, 3)); // (угол ±1, угол ±1, размер px)
+        geo.setIndex(new THREE.BufferAttribute(idx, 1));
+        geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), SKY_R * 1.1);
+        const S = attribute("aStar", "vec4"), K = attribute("aCornerPx", "vec3");
+        const clip = cameraProjectionMatrix.mul(modelViewMatrix.mul(vec4(positionLocal, 1.0)));
+        const mat = new THREE.MeshBasicNodeMaterial({
+          transparent: true,
+          premultipliedAlpha: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          fog: false,
+        });
+        mat.vertexNode = vec4(clip.xy.add(K.xy.mul(K.z).mul(sky.pxU).mul(clip.w)), clip.zw);
+        // ослабление у горизонта (экстинкция) по высоте звезды над горизонтом
+        const upW = normalize(modelWorldMatrix.mul(vec4(positionLocal, 0.0)).xyz).y;
+        const horizonFade = smoothstep(-0.01, 0.12, upW).toVarying("vStarHorizon");
+        const core = float(1.0).sub(smoothstep(0.0, 1.0, length(K.xy)));
+        mat.colorNode = S.rgb;
+        mat.opacityNode = core.mul(core).mul(S.w).mul(sky.starVis).mul(sky.cloudDim).mul(horizonFade).mul(0.9);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 2;
+        return mesh;
+      }
+
+      function makeConstellationLines(features) {
+        const pts = [];
+        const toV = ([raDeg, decDeg]) => {
+          const ra = raDeg * D2R, dec = decDeg * D2R, r = SKY_R * 0.99;
+          return [Math.cos(dec) * Math.cos(ra) * r, Math.cos(dec) * Math.sin(ra) * r, Math.sin(dec) * r];
+        };
+        for (const f of features)
+          for (const line of f.geometry.coordinates)
+            for (let i = 0; i < line.length - 1; i++) pts.push(...toV(line[i]), ...toV(line[i + 1]));
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pts), 3));
+        const mat = new THREE.LineBasicNodeMaterial({ transparent: true, depthWrite: false, fog: false });
+        mat.colorNode = vec3(0.35, 0.55, 0.9);
+        mat.opacityNode = sky.starVis.mul(sky.cloudDim).mul(0.35);
+        const ls = new THREE.LineSegments(geo, mat);
+        ls.frustumCulled = false;
+        ls.renderOrder = 1;
+        return ls;
+      }
+
+      // облачность в точке: Open-Meteo (текущие значения, % покрытия по ярусам)
+      async function fetchWeather() {
+        const url =
+          `https://api.open-meteo.com/v1/forecast?latitude=${sky.lat.toFixed(3)}&longitude=${sky.lon.toFixed(3)}` +
+          `&current=cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high&timezone=auto`;
+        try {
+          const j = await (await fetch(url)).json();
+          sky.cloud = j.current;
+          sky.tz = j.timezone || "UTC";
+          sky.lastWeather = performance.now();
+        } catch (e) {
+          console.warn("[diag] Open-Meteo не ответил:", e);
+          sky.cloud = null;
+        }
+      }
+
+      const _sd = new THREE.Vector3(), _md = new THREE.Vector3();
+      const _c0 = new THREE.Vector3(), _c1 = new THREE.Vector3(), _c2 = new THREE.Vector3();
+      const _skyM = new THREE.Matrix4();
+      function skyBodies(date) {
+        const obs = new Astronomy.Observer(sky.lat, sky.lon, 0);
+        const sEq = Astronomy.Equator(Astronomy.Body.Sun, date, obs, true, true);
+        const sH = Astronomy.Horizon(date, obs, sEq.ra, sEq.dec, "normal");
+        const mEq = Astronomy.Equator(Astronomy.Body.Moon, date, obs, true, true);
+        const mH = Astronomy.Horizon(date, obs, mEq.ra, mEq.dec, "normal");
+        return { obs, sH, mH };
+      }
+
+      function isWaterAt(lat, lon) {
+        if (!sky.waterMask) return false;
+        const x = Math.min(1023, Math.max(0, Math.floor(((lon + 180) / 360) * 1024)));
+        const y = Math.min(511, Math.max(0, Math.floor(((90 - lat) / 180) * 512)));
+        return sky.waterMask[(y * 1024 + x) * 4] > 127;
+      }
+
+      async function openSky(lat, lon) {
+        sky.lat = lat;
+        sky.lon = lon;
+        skyEl.panel.hidden = false;
+        if (!sky.ready) sky.ready = initSky();
+        await sky.ready;
+        sky.open = true;
+        sky.isWater = isWaterAt(lat, lon);
+        sky.water.visible = sky.isWater;
+        sky.ground.visible = !sky.isWater;
+        // смотреть на Луну, если она над горизонтом; иначе на Солнце; иначе на юг
+        const { sH, mH } = skyBodies(new Date(simTime));
+        const target = mH.altitude > 0 ? mH : sH.altitude > 0 ? sH : { azimuth: 180, altitude: 20 };
+        lookAtBody(target);
+        sky.pitch = Math.max(0.15, Math.min(1.2, sky.pitch));
+        sky.cloud = null;
+        fetchWeather();
+      }
+
+      // рыбка: выпрыгивает по дуге в стороне взгляда и ныряет обратно
+      const FISH_FLIP = 0; // ориентация модели скумбрии как есть — головой вперёд (проверено глазами)
+      function updateFish() {
+        const F = sky.fish;
+        if (!F) return;
+        const now = performance.now();
+        const fdt = Math.min((now - F.last) / 1000, 0.1);
+        F.last = now;
+        if (!sky.isWater || CREATURES.fishEvery <= 0) {
+          F.obj.visible = false;
+          F.t0 = -1;
+          F.next = now + 2000;
+          return;
+        }
+        if (F.t0 < 0 && now > F.next) {
+          F.t0 = now;
+          F.dur = 1100 + Math.random() * 500;
+          const az = -sky.yaw + (Math.random() - 0.5) * 0.7;
+          const d = 4 + Math.random() * 5;
+          F.cx = Math.sin(az) * d;
+          F.cz = -Math.cos(az) * d;
+          F.dir = Math.random() * Math.PI * 2;
+          F.h = 1.2 + Math.random() * 0.9;
+          F.len = 2.4 + Math.random() * 1.6;
+        }
+        if (F.t0 < 0) return;
+        const k = (now - F.t0) / F.dur;
+        if (k >= 1) {
+          F.t0 = -1;
+          F.obj.visible = false;
+          const mean = CREATURES.fishEvery * 1000;
+          F.next = now + mean * (0.5 + Math.random()); // случайно вокруг среднего интервала
+          return;
+        }
+        const sArc = k * 2 - 1; // −1..1
+        const half = F.len / 2;
+        F.obj.position.set(F.cx + Math.cos(F.dir) * sArc * half, -2.25 + F.h * (1 - sArc * sArc), F.cz + Math.sin(F.dir) * sArc * half);
+        // направление — по ходу прыжка, наклон — по касательной к дуге
+        F.obj.rotation.set(0, -F.dir, Math.atan2(-2 * F.h * sArc, half), "YZX");
+        F.mixer.update(fdt); // тело и хвост — анимация плавания из модели
+        F.obj.visible = true;
+      }
+
+      // стадо (boids): общая цель вида впереди по ходу + тяга к центру группы + выравнивание курса +
+      // мягкое расталкивание вплотную; направление сглаживается, поворот на ходу, без разворотов на месте
+      const HEADING_FIX = { bison: 0, rhino: 0 }; // поправка, если вид идёт задом (Math.PI)
+      const HERD_RMIN = 9, HERD_RMAX = 42;
+      const TURN_RATE = 0.3; // рад/с — не быстрее
+      const DIR_TAU = 2.0; // с — сглаживание желаемого направления
+      let herdLast = performance.now();
+      function updateHerd() {
+        const H = sky.herd;
+        if (!H || !H.length || !sky.groups) return;
+        const now = performance.now();
+        const dt = Math.min((now - herdLast) / 1000, 0.1);
+        herdLast = now;
+        const show = !sky.isWater;
+        const rnd = (a, b) => a + Math.random() * (b - a);
+        // состояние групп: центр, средний курс, цель впереди по ходу
+        const G = {};
+        for (const h of H) {
+          const g = (G[h.sp.key] ||= { c: new THREE.Vector2(), d: new THREE.Vector2(), n: 0 });
+          g.c.add(h.pos); g.d.add(new THREE.Vector2(Math.sin(h.heading), Math.cos(h.heading))); g.n++;
+        }
+        for (const [key, g] of Object.entries(G)) {
+          g.c.multiplyScalar(1 / g.n); g.d.normalize();
+          const st = sky.groups[key];
+          if (!st.target || g.c.distanceTo(st.target) < 6 || now > st.retarget) {
+            // новая цель — впереди по ходу группы (±60°), внутри кольца вокруг наблюдателя
+            for (let tries = 0; tries < 20; tries++) {
+              const base = Math.atan2(g.d.x, g.d.y) + rnd(-1.05, 1.05);
+              const dist = rnd(15, 30);
+              const t = g.c.clone().add(new THREE.Vector2(Math.sin(base) * dist, Math.cos(base) * dist));
+              const r = t.length();
+              if (r > HERD_RMIN + 6 && r < HERD_RMAX - 6) { st.target = t; break; }
+              if (tries === 19) st.target = g.c.clone().normalize().multiplyScalar((HERD_RMIN + HERD_RMAX) / 2).rotateAround(new THREE.Vector2(), 0.6);
+            }
+            st.retarget = now + rnd(40000, 80000);
+          }
+          g.target = st.target;
+        }
+        for (const h of H) {
+          h.obj.visible = show;
+          if (!show) continue;
+          const g = G[h.sp.key], sp = h.sp;
+          const want = new THREE.Vector2();
+          // 1) цель группы
+          want.add(g.target.clone().sub(g.c).normalize().multiplyScalar(1.0));
+          // 2) выравнивание курса со своими
+          want.add(g.d.clone().multiplyScalar(0.8));
+          // 3) тяга к центру группы, если отбился
+          const toC = g.c.clone().sub(h.pos), dc = toC.length();
+          const loose = sp.spacing * Math.sqrt(g.n) * 0.7;
+          if (dc > loose) want.add(toC.normalize().multiplyScalar(sp.cohesion * Math.min(1.5, (dc - loose) / sp.spacing)));
+          // 4) расталкивание — только вплотную (свой вид — spacing, чужой — 6 м)
+          for (const o of H) {
+            if (o === h) continue;
+            const keep = o.sp.key === sp.key ? sp.spacing : 9.0;
+            const d = h.pos.clone().sub(o.pos), dist = d.length();
+            if (dist < keep && dist > 1e-3) want.add(d.normalize().multiplyScalar(3.0 * (1 - dist / keep) ** 2));
+          }
+          // 4б) обход заранее: кто-то впереди по курсу в пределах 8 м — отворачиваем в сторону
+          {
+            const fwd = new THREE.Vector2(Math.sin(h.heading), Math.cos(h.heading));
+            for (const o of H) {
+              if (o === h) continue;
+              const rel = o.pos.clone().sub(h.pos);
+              const ahead = rel.dot(fwd);
+              const lat = fwd.x * rel.y - fwd.y * rel.x; // >0 — сосед слева
+              const clear = (h.radius + o.radius) * 1.4;
+              if (ahead > 0 && ahead < 8 && Math.abs(lat) < clear) {
+                const side = new THREE.Vector2(fwd.y, -fwd.x).multiplyScalar(lat >= 0 ? 1 : -1); // отворот от соседа
+                want.add(side.multiplyScalar(3.0 * (1 - ahead / 8) * (1 - Math.abs(lat) / clear)));
+              }
+            }
+          }
+          // 5) наблюдатель и граница — мягко
+          const r = h.pos.length();
+          if (r < HERD_RMIN) want.add(h.pos.clone().normalize().multiplyScalar(1.5 * (1 - r / HERD_RMIN)));
+          if (r > HERD_RMAX) want.add(h.pos.clone().normalize().multiplyScalar(-0.8));
+          if (want.lengthSq() > 1e-6) want.normalize();
+          // сглаживание желаемого направления (без дёрганий)
+          h.dir.lerp(want, 1 - Math.exp(-dt / DIR_TAU)).normalize();
+          const wantAng = Math.atan2(h.dir.x, h.dir.y);
+          let dAng = ((wantAng - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+          dAng = Math.max(-TURN_RATE * dt, Math.min(TURN_RATE * dt, dAng));
+          h.heading += dAng;
+          // темп: отставший чуть быстрее, вырвавшийся вперёд — медленнее; на повороте — немного медленнее
+          const ahead = h.pos.clone().sub(g.c).dot(g.d);
+          let k = 1 - Math.max(-0.15, Math.min(0.25, ahead / (sp.spacing * 3)));
+          k *= 0.85 + 0.15 * Math.cos(Math.min(Math.abs(dAng / Math.max(dt, 1e-3)) / TURN_RATE, 1) * (Math.PI / 2));
+          const v = h.speed * k;
+          h.pos.x += Math.sin(h.heading) * v * dt;
+          h.pos.y += Math.cos(h.heading) * v * dt;
+
+          h.obj.rotation.y = h.heading + HEADING_FIX[sp.key];
+          h.action.timeScale = sp.animScale * k; // темп шага строго по скорости — стопы не скользят
+          h.mixer.update(dt);
+        }
+        if (show) {
+          for (let it = 0; it < 4; it++) {
+            for (let i = 0; i < H.length; i++) {
+              for (let j = i + 1; j < H.length; j++) {
+                const a = H[i], b = H[j];
+                const minD = (a.radius + b.radius) * 1.05;
+                const d = a.pos.clone().sub(b.pos);
+                let dist = d.length();
+                if (dist >= minD) continue;
+                if (dist < 1e-4) { d.set(Math.random() - 0.5, Math.random() - 0.5); dist = d.length(); }
+                const push = d.multiplyScalar((minD - dist) / dist);
+                const wa = b.sp.mass / (a.sp.mass + b.sp.mass), wb = a.sp.mass / (a.sp.mass + b.sp.mass);
+                a.pos.addScaledVector(push, wa);
+                b.pos.addScaledVector(push, -wb);
+              }
+            }
+          }
+          for (const h of H) h.obj.position.set(h.pos.x, -2, h.pos.y);
+        }
+      }
+
+      function updateSky(date) {
+        if (!sky.open || !sky.renderer) return;
+        const { obs, sH, mH } = skyBodies(date);
+        sky.sunH = sH;
+        sky.moonH = mH;
+        horDir(sH.altitude, sH.azimuth, _sd);
+        sky.mesh.sunPosition.value.copy(_sd);
+        sky.sun.position.copy(_sd).multiplyScalar(SKY_R * 0.9);
+        sky.sunHalo.position.copy(sky.sun.position);
+        {
+          // бледно-жёлтый диск (отличается от белого неба); у горизонта желтеет и краснеет; под облаками тускнеет
+          const low = Math.min(Math.max(sH.altitude / 15, 0), 1);
+          sky.sun.material.color.setRGB(1.0, 0.62 + 0.38 * low, 0.3 + 0.7 * low); // у горизонта — оранжевее
+          const vis = sH.altitude > -1.5 ? Math.max(0.25, 1 - 0.75 * (sky.cloud ? sky.cloud.cloud_cover / 100 : 0)) : 0;
+          sky.sun.material.opacity = vis;
+          sky.sunHalo.material.opacity = vis;
+        }
+        sky.sunDirU.value.copy(_sd);
+        if (sky.isWater) {
+          if (sH.altitude > -3) {
+            // солнечная дорожка; у горизонта — золотистая
+            const k = Math.min(Math.max((sH.altitude + 3) / 10, 0), 1);
+            const low = Math.min(Math.max(sH.altitude / 15, 0), 1);
+            sky.water.sunDirection.value.copy(_sd);
+            sky.water.sunColor.value.setRGB(k, k * (0.75 + 0.25 * low), k * (0.5 + 0.5 * low));
+          } else if (mH.altitude > 0) {
+            // лунная дорожка: яркость по фазе
+            horDir(mH.altitude, mH.azimuth, _md);
+            const f = sky.moonFrac ?? 0.5;
+            sky.water.sunDirection.value.copy(_md);
+            sky.water.sunColor.value.setRGB(0.3 * f, 0.32 * f, 0.38 * f);
+          } else {
+            sky.water.sunColor.value.setRGB(0, 0, 0);
+          }
+        }
+        horDir(mH.altitude, mH.azimuth, _md);
+        sky.moon.position.copy(_md).multiplyScalar(SKY_R * 0.875);
+        // Луна видимой стороной (долгота 0 = +x) к наблюдателю, север — к зениту
+        _c0.copy(_md).negate();
+        _c1.set(0, 1, 0).addScaledVector(_c0, -_c0.y).normalize();
+        _c2.crossVectors(_c0, _c1);
+        sky.moon.quaternion.setFromRotationMatrix(_skyM.makeBasis(_c0, _c1, _c2));
+
+        // звёзды: J2000 -> горизонт наблюдателя -> оси окна
+        const rot = Astronomy.Rotation_EQJ_HOR(date, obs);
+        const t = Astronomy.MakeTime(date);
+        horToSky(Astronomy.RotateVector(rot, new Astronomy.Vector(1, 0, 0, t)), _c0);
+        horToSky(Astronomy.RotateVector(rot, new Astronomy.Vector(0, 1, 0, t)), _c1);
+        horToSky(Astronomy.RotateVector(rot, new Astronomy.Vector(0, 0, 1, t)), _c2);
+        sky.celestial.matrix.makeBasis(_c0, _c1, _c2);
+        sky.celestial.matrixWorldNeedsUpdate = true;
+
+        // видимость звёзд: полностью — когда Солнце ниже −14°, исчезают к −2°
+        sky.starVis.value = Math.min(Math.max((-sH.altitude - 2) / 12, 0), 1);
+        sky.nightU.value = Math.min(Math.max(-sH.altitude / 12, 0), 1); // полностью ночь при Солнце ниже −12°
+        const day = Math.min(Math.max((sH.altitude + 6) / 16, 0), 1);
+        sky.groundColor.value.setRGB(0.012 + 0.16 * day, 0.014 + 0.17 * day, 0.016 + 0.1 * day);
+        sky.dayLight.value = 0.06 + 0.94 * day;
+        {
+          // объёмные облака: свет Солнца (днём тёплый белый, на закате оранжевый, снизу — подсветка зари),
+          // ночью — свет Луны по фазе; рассеянный свет неба — по высоте Солнца
+          const cu = sky.cloudU;
+          const e = sH.altitude;
+          if (e > -4) {
+            const k = Math.min(Math.max((e + 4) / 5, 0), 1);
+            const low = Math.min(Math.max(e / 20, 0), 1);
+            const glow = 1.6 - 0.6 * low; // у горизонта свет на облаках ярче (длинный путь, подсветка снизу)
+            cu.sunDir.value.copy(_sd);
+            cu.sunCol.value.setRGB(1.05 * k * glow, (0.42 + 0.55 * low) * k * glow, (0.2 + 0.72 * low) * k * glow);
+          } else if (mH.altitude > 0) {
+            horDir(mH.altitude, mH.azimuth, _md);
+            const f = sky.moonFrac ?? 0.5;
+            cu.sunDir.value.copy(_md);
+            cu.sunCol.value.setRGB(0.1 * f, 0.11 * f, 0.14 * f);
+          } else {
+            cu.sunCol.value.setRGB(0, 0, 0);
+          }
+          const warm = Math.min(Math.max(1 - Math.abs(e - 2) / 10, 0), 1); // заря
+          const ambK = day * (1 - 0.55 * warm); // в зарю рассеянный свет слабее — облака окрашивает Солнце
+          cu.amb.value.setRGB(0.02 + ambK * 0.5, 0.025 + ambK * 0.58, 0.05 + ambK * 0.72);
+        }
+        sky.grassField.object.visible = !sky.isWater;
+        sky.sunLightM.position.copy(_sd).multiplyScalar(100);
+        sky.sunLightM.intensity = 2.5 * Math.min(Math.max(sH.altitude / 10, 0), 1);
+        sky.skyLightM.intensity = 0.15 + 1.0 * day; // рассеянный свет неба: теневая сторона животных не проваливается в черноту
+        updateFish();
+        updateHerd();
+
+        // облачность Open-Meteo -> облака SkyMesh и ослабление звёзд и Луны
+        const cc = sky.cloud ? sky.cloud.cloud_cover / 100 : 0;
+        const low = sky.cloud ? sky.cloud.cloud_cover_low / 100 : 0;
+        sky.mesh.cloudCoverage.value = 0; // плоские облака SkyMesh выключены — вместо них объёмные
+        sky.cloudU.coverage.value = Math.min(cc * 0.85 + (cc > 0.02 ? 0.12 : 0), 0.97);
+        sky.cloudU.absorb.value = 0.0035 + 0.003 * low;
+        sky.cloudDim.value = 1 - 0.85 * cc;
+
+        const W = skyEl.canvas.clientWidth, H = skyEl.canvas.clientHeight;
+        // настоящие угловые диаметры: Солнце 31′27″–32′32″, Луна 29.3′–34.1′ (зависят от расстояний);
+        // для наглядности оба увеличены ОДНИМ множителем — соотношение как в реальном небе
+        const AU_KM = 149597870.7;
+        const sunDistKm = Astronomy.GeoVector(Astronomy.Body.Sun, date, true).Length() * AU_KM;
+        const moonDistKm = Astronomy.GeoMoon(date).Length() * AU_KM;
+        const sunDeg = 2 * Math.atan(695700 / sunDistKm) / D2R;
+        const moonDeg = 2 * Math.atan(1737.4 / moonDistKm) / D2R;
+        sky.sunDeg = sunDeg; sky.moonDeg = moonDeg;
+        {
+          const VIS_C = 6; // увеличение в обычном виде
+          sky.sun.scale.setScalar(2 * SKY_R * 0.9 * Math.tan((sunDeg * VIS_C / 2) * D2R));
+          sky.sunHalo.scale.setScalar(sky.sun.scale.x * 4);
+          sky.moon.scale.setScalar((moonDeg * VIS_C) / MOON_VIS_DEG);
+          sky.pxU.value.set(2 / W, 2 / H);
+          for (const l of sky.labels) {
+            l.visible = true;
+            l.scale.setScalar(0.22 * (Math.tan((sky.fov / 2) * D2R) / Math.tan(35 * D2R)));
+          }
+          const cam = sky.camera;
+          cam.fov = sky.fov;
+          cam.aspect = W / H;
+          cam.updateProjectionMatrix();
+          cam.rotation.set(sky.pitch, sky.yaw, 0);
+          cam.updateMatrixWorld();
+          sky.renderer.render(sky.scene, cam);
+          placeMark(skyEl.markSun, _sd, sH.altitude > -0.8);
+          placeMark(skyEl.markMoon, _md, mH.altitude > -0.5);
+          // кнопки: активны, когда светило над горизонтом
+          skyEl.btnSun.disabled = sH.altitude <= -0.8;
+          skyEl.btnMoon.disabled = mH.altitude <= -0.5;
+          skyEl.btnSun.title = skyEl.btnSun.disabled ? "The Sun is below the horizon" : "Look at the Sun";
+          skyEl.btnMoon.title = skyEl.btnMoon.disabled ? "The Moon is below the horizon" : "Look at the Moon";
+        }
+
+        const now = performance.now();
+        if (now - sky.lastInfo > 300) {
+          sky.lastInfo = now;
+          const ill = Astronomy.Illumination(Astronomy.Body.Moon, date);
+          sky.moonFrac = ill.phase_fraction;
+          const local = date.toLocaleString("en-GB", { timeZone: sky.tz, hour12: false });
+          const f = (v) => v.toFixed(1);
+          skyEl.title.textContent = `Sky: ${f(Math.abs(sky.lat))}° ${sky.lat >= 0 ? "N" : "S"}, ${f(Math.abs(sky.lon))}° ${sky.lon >= 0 ? "E" : "W"} · ${local} (${sky.tz}) · ${sky.isWater ? "over water" : "on land"}`;
+          const c = sky.cloud;
+          skyEl.info.textContent =
+            `Sun: altitude ${f(sH.altitude)}°, azimuth ${f(sH.azimuth)}° · Moon: altitude ${f(mH.altitude)}°, azimuth ${f(mH.azimuth)}°, ${Math.round(ill.phase_fraction * 100)}% lit\n` +
+            (c
+              ? `Cloud cover ${c.cloud_cover}% (low ${c.cloud_cover_low}%, mid ${c.cloud_cover_mid}%, high ${c.cloud_cover_high}%) · Open-Meteo, now`
+              : "Cloud cover: loading… (Open-Meteo)") +
+            " · drag to look around, scroll to zoom";
+        }
+      }
+
+      // метка «наше местоположение»: булавка-гвоздик, торчащая из поверхности по вертикали места
+      function placeMarker(local) {
+        if (!sky.marker) {
+          const pin = new THREE.Group();
+          const h = globeR * 0.2;
+          const shaftMat = new THREE.MeshBasicNodeMaterial({ fog: false });
+          shaftMat.colorNode = mix(vec3(0.45, 0.47, 0.5), vec3(0.85, 0.87, 0.9), normalWorld.y.mul(0.5).add(0.5));
+          const shaft = new THREE.Mesh(new THREE.CylinderGeometry(globeR * 0.0035, globeR * 0.0015, h, 12), shaftMat);
+          shaft.position.y = h / 2 - globeR * 0.01; // кончик немного утоплен в поверхность
+          const headMat = new THREE.MeshBasicNodeMaterial({ fog: false });
+          headMat.colorNode = mix(vec3(0.55, 0.02, 0.02), vec3(1.0, 0.25, 0.2), normalWorld.y.mul(0.5).add(0.5));
+          const head = new THREE.Mesh(new THREE.SphereGeometry(globeR * 0.018, 20, 14), headMat);
+          head.position.y = h - globeR * 0.01;
+          pin.add(shaft, head);
+          globe.add(pin);
+          sky.marker = pin;
+        }
+        sky.marker.position.copy(local).multiplyScalar(globeR);
+        sky.marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), local);
+        sky.marker.visible = true;
+      }
+
+      // Наблюдатель: сверка с реальными данными раз в минуту
+      function observe() {
+        lastObserve = new Date();
+        if (live) simTime = Date.now(); // время — по системным часам
+        checkClouds(); // облака — новый снимок, если вышел
+        if (sky.open) fetchWeather(); // облачность в точке окна неба — Open-Meteo
+      }
+
+      function loop(now) {
+        requestAnimationFrame(loop);
+        const dt = Math.min((now - prev) / 1000, 0.05);
+        prev = now;
+        // расстояние Земли до Солнца (слайдер) -> пересчёт орбиты
+        orbitR = baseOrbitR * PARAMS.distanceFactor;
+        // время сцены: реальное × ускорение (мышь на Земле -> реальная скорость)
+        if (PARAMS.timeScale !== 1) live = false; // ускорение — «живой» режим выключен
+        if (live || (holdEarth && PARAMS.timeScale === 1)) simTime = Date.now();
+        else simTime += dt * 1000 * (holdEarth ? 1 : PARAMS.timeScale);
+        const date = new Date(simTime);
+        updateAstronomy(date);
+        updateSky(date);
+        sunGroup.rotation.y += dt * SUN_IDLE_YAW; // холостое вращение, как в оригинале
+        if (follow) {
+          follow.body.getWorldPosition(_fp);
+          if (follow.flying) {
+            const k = Math.min((performance.now() - follow.t0) / 600, 1);
+            const ease = k * k * (3 - 2 * k);
+            controls.target.lerpVectors(follow.fromTarget, _fp, ease);
+            camera.position.lerpVectors(follow.fromCam, _fp.clone().add(follow.offset), ease);
+            if (k >= 1) follow.flying = false;
+          } else {
+            // тело сдвинулось — камера и цель сдвигаются вместе с ним
+            const d = _fp.clone().sub(follow.prev);
+            controls.target.add(d);
+            camera.position.add(d);
+          }
+          follow.prev.copy(_fp);
+        }
+        controls.update();
+        renderFrame();
+      }
+
+      async function main() {
+        loaderStep.textContent = "Starting WebGPU…";
+        const available = !!navigator.gpu && WebGPU.isAvailable();
+        if (!available) {
+          loaderError(
+            "WebGPU is not available in this browser.\n\n" +
+              (navigator.gpu
+                ? "Try an up-to-date Chrome or Edge (113+); details are in DevTools → Console."
+                : "WebGPU needs a secure context (https or localhost) and an up-to-date Chrome, Edge or Safari."),
+          );
+          return;
+        }
+
+        buildStatic();
+
+        renderer = new THREE.WebGPURenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.setPixelRatio(devicePixelRatio);
+        renderer.inspector = new Inspector();
+        document.body.appendChild(renderer.domElement);
+        const initPromise = track(renderer.init(), "WebGPU");
+        await loadEarthAssets(); // параллельно с init
+        await loadMoonTex(); // текстура Луны
+        await initPromise;
+        // Как в WebGL-оригинале Солнца: без тонмаппинга и без цветового преобразования кадра.
+        // Земля/Луна/звёзды/фон получают ACES + sRGB в своих материалах (displayOut).
+        renderer.toneMapping = THREE.NoToneMapping;
+        renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+
+        computeSizes();
+        makeGlobe();
+        makeMoon();
+        buildSun(); // Солнце: перенос оригинальных GLSL-шейдеров на TSL
+        progress("Scene");
+        simTime = Date.now();
+        orbitR = baseOrbitR * PARAMS.distanceFactor;
+        updateAstronomy(new Date(simTime));
+        observe();
+        setInterval(observe, OBSERVE_MS);
+        // при возврате во вкладку — проверка сразу
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") observe();
+        });
+
+        // Зум (скролл) + поворот сцены (OrbitControls)
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = sunRadius * 1.2; // близко к Солнцу
+        controls.maxDistance = baseOrbitR * 40; // далеко — весь sistem
+        // --- Инспектор three.js: время + расстояние + «сейчас» + параметры Земли ---
+        const gui = renderer.inspector.createParameters("Parameters");
+        const timeCtrl = gui.add(PARAMS, "timeScale", 0, 20000, 1).name("TIME ×");
+        const distCtrl = gui.add(PARAMS, "distanceFactor", 0.4, 3.0, 0.01).name("DISTANCE ×");
+        // время сцены -> текущее реальное, скорость ×1 (при клике по Земле и «Где я»)
+        const syncNow = () => {
+          simTime = Date.now();
+          timeCtrl.setValue(1);
+          PARAMS.timeScale = 1;
+          live = true;
+        };
+        gui
+          .add(
+            {
+              now() {
+                syncNow();
+                distCtrl.setValue(1);
+              },
+            },
+            "now",
+          )
+          .name("NOW");
+
+        // «Где я»: геолокация браузера -> булавка, окно неба и камера к этой точке Земли
+        function focusEarthPoint(local) {
+          const p = globe.getWorldPosition(new THREE.Vector3());
+          const dirW = local.clone().applyQuaternion(globe.quaternion).normalize();
+          follow = {
+            body: globe,
+            t0: performance.now(),
+            fromTarget: controls.target.clone(),
+            fromCam: camera.position.clone(),
+            offset: dirW.multiplyScalar(globeR * 3.2), // камера над точкой, точка смотрит на нас
+            prev: p.clone(),
+            flying: true,
+          };
+          controls.minDistance = globeR * 1.15;
+        }
+        gui
+          .add(
+            {
+              whereAmI() {
+                if (!navigator.geolocation) {
+                  msg("Geolocation is not available in this browser", "err");
+                  return;
+                }
+                msg("Locating…");
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+                    const la = lat * D2R, lo = lon * D2R;
+                    // оси шара: долгота 0 -> +x, 90° в.д. -> -z, север -> +y
+                    const local = new THREE.Vector3(Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo));
+                    syncNow();
+                    placeMarker(local);
+                    openSky(lat, lon);
+                    focusEarthPoint(local);
+                    msg(`📍 You are here: ${lat.toFixed(3)}°, ${lon.toFixed(3)}° (±${Math.round(pos.coords.accuracy)} m)`, "ok");
+                  },
+                  (err) => msg(`Geolocation: ${err.code === 1 ? "permission denied" : err.message}`, "err"),
+                  { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
+                );
+              },
+            },
+            "whereAmI",
+          )
+          .name("📍 WHERE AM I");
+        const earthFolder = gui.addFolder("Earth");
+        earthFolder
+          .addColor({ color: atmosphereDayColor.value.getHex(THREE.SRGBColorSpace) }, "color")
+          .onChange((v) => atmosphereDayColor.value.set(v))
+          .name("atmosphere (day)");
+        earthFolder
+          .addColor({ color: atmosphereTwilightColor.value.getHex(THREE.SRGBColorSpace) }, "color")
+          .onChange((v) => atmosphereTwilightColor.value.set(v))
+          .name("atmosphere (twilight)");
+        earthFolder.add(roughnessLow, "value", 0, 1, 0.001).name("water roughness");
+        earthFolder.add(waterVar, "value", 0, 1.5, 0.01).name("water variation");
+        earthFolder.add(roughnessHigh, "value", 0, 1, 0.001).name("land roughness");
+        earthFolder.add(cityGain, "value", 0, 3, 0.01).name("city lights");
+        const animFolder = gui.addFolder("Animals (sky view)");
+        animFolder.add(CREATURES, "fishEvery", 0, 60, 1).name("fish jump: every … s");
+
+        // Зажатие мыши на Земле -> время идёт с реальной скоростью
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        function overEarth(e) {
+          const rect = renderer.domElement.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          return raycaster.intersectObject(globe.children[0], false)[0] || null;
+        }
+        let downAt = null;
+        renderer.domElement.addEventListener("pointerdown", (e) => {
+          downAt = { x: e.clientX, y: e.clientY };
+          if (overEarth(e)) holdEarth = true;
+        });
+        let pendingClick = null;
+        renderer.domElement.addEventListener("pointerup", (e) => {
+          if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
+          const hit = overEarth(e);
+          if (!hit) return;
+          const local = globe.worldToLocal(hit.point.clone()).normalize();
+          clearTimeout(pendingClick);
+          pendingClick = setTimeout(() => {
+            pendingClick = null;
+            syncNow();
+            const lat = Math.asin(local.y) / D2R;
+            const lon = Math.atan2(-local.z, local.x) / D2R;
+            placeMarker(local);
+            openSky(lat, lon);
+          }, 260);
+        });
+
+        // Привязка камеры двойным кликом: Солнце, Луна или Земля; двойной клик в пустоту — отвязка
+        renderer.domElement.addEventListener("dblclick", (e) => {
+          clearTimeout(pendingClick);
+          pendingClick = null;
+          const rect = renderer.domElement.getBoundingClientRect();
+          mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          const sunBall = sunGroup.children[0], earthBall = globe.children[0];
+          const hit = raycaster.intersectObjects([sunBall, moonMesh, earthBall], false)[0];
+          if (!hit) {
+            follow = null;
+            controls.minDistance = sunRadius * 1.2;
+            return;
+          }
+          const body = hit.object === sunBall ? sunGroup : hit.object === moonMesh ? moonMesh : globe;
+          const r = body === sunGroup ? sunRadius : body === moonMesh ? globeR * 0.27 : globeR;
+          const p = body.getWorldPosition(new THREE.Vector3());
+          const dir = camera.position.clone().sub(controls.target).normalize();
+          const dist = Math.max(r * 2.2, Math.min(camera.position.distanceTo(p), r * 7));
+          follow = {
+            body,
+            t0: performance.now(),
+            fromTarget: controls.target.clone(),
+            fromCam: camera.position.clone(),
+            offset: dir.multiplyScalar(dist),
+            prev: p.clone(),
+            flying: true,
+          };
+          controls.minDistance = r * 1.15;
+        });
+        window.addEventListener("pointerup", () => {
+          holdEarth = false;
+        });
+        window.addEventListener("pointerleave", () => {
+          holdEarth = false;
+        });
+
+        prev = performance.now();
+        requestAnimationFrame(loop);
+
+        addEventListener("resize", () => {
+          camera.aspect = innerWidth / innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(innerWidth, innerHeight);
+          if (cityPxU) cityPxU.value.set(2 / innerWidth, 2 / innerHeight);
+        });
+
+        loaderDone();
+        console.log(
+          "[diag] orbitR:",
+          orbitR,
+          "| globeR:",
+          globeR,
+          "| sunR:",
+          globeR * SUN_FRAC,
+        );
+      }
+
+      main().catch((e) => {
+        console.error(e);
+        loaderError("Something went wrong:\n" + (e.message || e));
+      });
+    </script>
+  </body>
+</html>
