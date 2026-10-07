@@ -367,7 +367,6 @@
         <h3>3D models</h3>
         <ul>
           <li>Mackerel: <a href="https://sketchfab.com/3d-models/atlantic-mackerel-animated-and-game-ready-eca6071c26fc4013b8c94a3f37a434c7" target="_blank" rel="noopener">“Atlantic Mackerel (Animated and Game-ready)”</a> by 1shxxn <span class="lic">CC BY 4.0</span></li>
-          <li>Bison: <a href="https://sketchfab.com/3d-models/animated-free-bison-be2dcd97db1c4b9c91a7728d9bc89925" target="_blank" rel="noopener">“Animated Free Bison”</a> by AneesAnimates <span class="lic">CC BY 4.0</span></li>
           <li>Rhino: <a href="https://sketchfab.com/3d-models/rhino-animation-walk-a915d9179fe6422b9d669a3a0d726b8e" target="_blank" rel="noopener">“Rhino Animation Walk”</a> by GremorySaiyan <span class="lic">CC BY 4.0</span></li>
         </ul>
         <h3>Libraries</h3>
@@ -1835,6 +1834,10 @@
           castShadow: false,
           receiveShadow: false,
         });
+        // трава матовая, без «стеклянного» блика: у материала библиотеки roughness 0.6 и specularIntensity 0.18
+        sky.grassField.material.roughness = 0.95;
+        sky.grassField.material.specularIntensity = 0.03;
+        sky.grassField.material.needsUpdate = true;
 
         // --- рыбка: «Atlantic Mackerel (Animated and Game-ready)», 1shxxn, Sketchfab, CC BY 4.0;
         // скелет 25 костей, анимации Swimming / Idle / Death
@@ -1863,7 +1866,6 @@
         });
 
         // --- стадо: бизоны и носороги постоянно бродят вокруг, обходят друг друга и наблюдателя ---
-        // бизон: «Animated Free Bison», AneesAnimates, Sketchfab, CC BY 4.0
         // носорог: «Rhino Animation Walk», GremorySaiyan, Sketchfab, CC BY 4.0
         sky.herd = [];
         const SPECIES = [
@@ -1871,7 +1873,6 @@
           // animScale — ускорение анимации (у бизона клип очень медленный: цикл 4.17 с -> ~1.3 с)
           // spacing — желаемое расстояние между особями своего вида, м; cohesion — сила тяги к центру группы
           // radius — половина длины тела: столкновение исключено при любом повороте; mass — кто кого сдвигает
-          { key: "bison", url: "assets/animated_free_bison.glb", count: 4, length: 3.0, footSpeed: 0.16, animScale: 3.2, radius: 1.55, mass: 1.0, spacing: 4.5, cohesion: 1.0, specGloss: true },
           { key: "rhino", url: "assets/rhino_animation_walk.glb", count: 2, length: 3.8, footSpeed: 0.86, animScale: 1.0, radius: 1.95, mass: 2.2, spacing: 8.0, cohesion: 0.6 },
         ];
         const loadSpecies = (sp) =>
