@@ -489,7 +489,7 @@
         <ul>
           <li>Live clouds: <a href="https://clouds.matteason.co.uk/" target="_blank" rel="noopener">Live Cloud Maps</a> (Matt Eason) — contains modified EUMETSAT data</li>
           <li>Local weather &amp; cloud cover: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> <span class="lic">data CC BY 4.0</span></li>
-          <li>Settlements: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> <span class="lic">CC BY 4.0</span></li>
+          <li>Settlements (city lights) &amp; nearest place names: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> <span class="lic">CC BY 4.0</span></li>
           <li>Sun, Moon and Earth positions: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a> (Don Cross) <span class="lic">MIT</span></li>
           <li>Stars, constellation lines, IAU boundaries &amp; names: <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noopener">d3-celestial</a> (Olaf Frohn) <span class="lic">BSD-3-Clause</span></li>
           <li>Constellation descriptions: <a href="https://en.wikipedia.org/" target="_blank" rel="noopener">Wikipedia</a> <span class="lic">CC BY-SA 4.0</span></li>
@@ -2566,15 +2566,9 @@
           const hit = _ray.intersectObjects(proxies, false)[0];
           return hit ? { kind: hit.object.userData.kind, obj: hit.object, ref: hit.object.userData.ref || null } : null;
         };
-        let hoverRef = null;
         const updateHover = (e) => {
           const an = drag ? null : animalAt(e);
-          // наведение на носорога или слона — его голос (не чаще раза в 3 с на особь)
-          if (an?.ref && an.ref !== hoverRef && performance.now() > an.ref.nextHoverSound) {
-            an.ref.nextHoverSound = performance.now() + 3000;
-            animalVoice(an.ref);
-          }
-          hoverRef = an?.ref || null;
+          // над животным — курсор-рука; голос — только по нажатию (см. обработчик клика)
           if (an) {
             setHighlight(null);
             constTip.hidden = true;
@@ -2929,6 +2923,27 @@
       const skyTask = (label, promise) => Promise.resolve(promise).finally(() => skyLoadDone(label));
       const skyTaskStart = (label) => () => skyLoadDone(label);
 
+      // ближайший населённый пункт к точке клика: GeoNames cities15000 (все города мира от 15 тыс. жителей, CC BY 4.0).
+      // Формат: [название, код страны ISO, широта, долгота, население]. Поиск — перебором по расстоянию по сфере
+      let PLACES = null, placesPromise = null;
+      const loadPlaces = () =>
+        (placesPromise ||= fetch("textures/sky/places15000.json")
+          .then((r) => r.json())
+          .then((a) => (PLACES = a))
+          .catch((e) => (console.warn("[diag] названия мест не загрузились:", e), null)));
+      function nearestPlace(lat, lon) {
+        if (!PLACES) return null;
+        const la = lat * D2R, lo = lon * D2R, cla = Math.cos(la);
+        let best = null, bestH = Infinity;
+        for (const p of PLACES) {
+          const pa = p[2] * D2R, dl = p[3] * D2R - lo;
+          const h = Math.sin((pa - la) / 2) ** 2 + cla * Math.cos(pa) * Math.sin(dl / 2) ** 2; // гаверсинус
+          if (h < bestH) (bestH = h), (best = p);
+        }
+        const km = 2 * 6371 * Math.asin(Math.sqrt(Math.min(1, bestH)));
+        return { name: best[0], cc: best[1], km };
+      }
+
       async function openSky(lat, lon) {
         sky.lat = lat;
         sky.lon = lon;
@@ -2939,7 +2954,7 @@
         if (sky.loaded) {
           skyLoadBegin([], true); // всё загружено и подготовлено — без шторки, плавное проявление
         } else if (!sky.ready) {
-          const steps = ["Grass", "Stars", "Constellations", "Fish", "Rhinos", "Elephants", "Running rhino", "Toads", "Bats", "Weather", "Scene"];
+          const steps = ["Grass", "Stars", "Constellations", "Places", "Fish", "Rhinos", "Elephants", "Running rhino", "Toads", "Bats", "Weather", "Scene"];
           if (SND.on && !SND.ctx) steps.push("Sounds");
           skyLoadBegin(steps, false);
         } else {
@@ -2948,6 +2963,8 @@
           SKYLOAD.title.textContent = `Loading ${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? "E" : "W"}`;
         }
         if (SND.on) soundStart(); // вызов в обработчике клика — браузер разрешает звук
+        sky.place = null;
+        skyTask("Places", loadPlaces().then(() => (sky.place = nearestPlace(lat, lon))));
         if (!sky.ready) sky.ready = initSky();
         await sky.ready;
         sky.open = true;
@@ -3698,7 +3715,9 @@
           sky.moonFrac = ill.phase_fraction;
           const local = date.toLocaleString("en-GB", { timeZone: sky.tz, hour12: false });
           const f = (v) => v.toFixed(1);
-          skyEl.title.textContent = `Sky: ${f(Math.abs(sky.lat))}° ${sky.lat >= 0 ? "N" : "S"}, ${f(Math.abs(sky.lon))}° ${sky.lon >= 0 ? "E" : "W"} · ${local} (${sky.tz}) · ${sky.isWater ? "over water" : "on land"}`;
+          const pl = sky.place;
+          const where = pl ? (pl.km < 5 ? `in ${pl.name}, ${pl.cc} · ` : `near ${pl.name}, ${pl.cc} — ${Math.round(pl.km)} km · `) : "";
+          skyEl.title.textContent = `Sky: ${where}${f(Math.abs(sky.lat))}° ${sky.lat >= 0 ? "N" : "S"}, ${f(Math.abs(sky.lon))}° ${sky.lon >= 0 ? "E" : "W"} · ${local} (time zone ${sky.tz}) · ${sky.isWater ? "over water" : "on land"}`;
           const c = sky.cloud;
           skyEl.info.textContent =
             `Sun: altitude ${f(sH.altitude)}°, azimuth ${f(sH.azimuth)}° · Moon: altitude ${f(mH.altitude)}°, azimuth ${f(mH.azimuth)}°, ${Math.round(ill.phase_fraction * 100)}% lit\n` +
@@ -4080,6 +4099,7 @@
             "textures/sky/constellations.lines.json",
             "textures/sky/constellations.bounds.json",
             "textures/sky/constellations.json",
+            "textures/sky/places15000.json",
             "textures/waternormals.jpg",
           ];
           Promise.all(urls.map((u) => fetch(u, { priority: "low" }).then((r) => r.arrayBuffer())))
