@@ -507,6 +507,7 @@
           <li>Running rhino: <a href="https://sketchfab.com/3d-models/animated-3d-grey-rhino-running-loop-2345603eec5e4e54a293c39833684525" target="_blank" rel="noopener">“Animated 3D Grey Rhino Running Loop”</a> by LasquetiSpice <span class="lic">CC BY 4.0</span></li>
           <li>Elephant: <a href="https://sketchfab.com/3d-models/elephant-4ae161372d6a4219a87340339d1ffe03" target="_blank" rel="noopener">“Elephant”</a> by Rukh3D <span class="lic">CC BY 4.0</span></li>
           <li>Bat: <a href="https://sketchfab.com/3d-models/bat-8719886cf8f645ca9d53d766976baf9c" target="_blank" rel="noopener">“Bat”</a> by ice9 <span class="lic">CC BY 4.0</span></li>
+          <li>Clown: modelled for this project in Blender; dance (“Thriller”) and laugh (“Laughing”) animations from <a href="https://www.mixamo.com/" target="_blank" rel="noopener">Mixamo</a> (Adobe)</li>
           <li>Japanese toad (<i>Bufo japonicus</i>) with katydid: <a href="https://sketchfab.com/3d-models/cc0-japanese-toad-62afb780965f48b9be897e07294480eb" target="_blank" rel="noopener">“CC0 Japanese Toad”</a> by ffish.asia / floraZia.com <span class="lic">CC0</span></li>
         </ul>
         <h3>Sounds</h3>
@@ -515,6 +516,7 @@
           <li>Sea waves: <a href="https://bigsoundbank.com/sound-0266-sea-waves.html" target="_blank" rel="noopener">BigSoundBank</a> (Denis Chardonnet) <span class="lic">CC0</span></li>
           <li>Toad croak (cut into single croaks): <a href="https://pixabay.com/sound-effects/nature-frog-sound-568831/" target="_blank" rel="noopener">“Frog Sound”</a> by u_dtw7a5lpx2 <span class="lic">Pixabay Content License</span></li>
           <li>Rhino: <a href="https://pixabay.com/sound-effects/indian-rhinoceros-rhinoceros-unicornis-95946/" target="_blank" rel="noopener">“Indian rhinoceros (Rhinoceros unicornis)”</a> by Breviceps (Freesound) <span class="lic">Pixabay Content License</span></li>
+          <li>Clown laugh (time-stretched): <a href="https://bigsoundbank.com/laugh-s0475.html" target="_blank" rel="noopener">“Horrible Laugh #1”</a>, BigSoundBank <span class="lic">CC0</span></li>
           <li>Elephant (cut into single calls): <a href="https://pixabay.com/sound-effects/nature-elephant-58368/" target="_blank" rel="noopener">“Elephant”</a> by geronimo83 (Freesound) <span class="lic">Pixabay Content License</span></li>
         </ul>
         <h3>Libraries</h3>
@@ -2168,6 +2170,118 @@
           updateGrassInteractors();
         })();
 
+        // --- клоун: модель сделана для этого проекта в Blender; анимации «Thriller» (танец) и «Laughing» (смех) — Mixamo (Adobe),
+        // перенесены на скелет клоуна. Танцует по кругу; по нажатию — плавный переход в смех со звуком, затем снова танец
+        sky.clown = null;
+        const clownTask = skyTaskStart("Clown");
+        new GLTFLoader().load("assets/clown.glb", (gltf) => {
+          const model = gltf.scene;
+          // в GLB все материалы клоуна двусторонние: изнанка внутреннего слоя костюма (модификатор толщины) освещалась
+          // через складки — «свечение изнутри». Рисуем только лицевую сторону; полость рта — двусторонняя (видна изнутри)
+          model.traverse((o) => {
+            if (!o.isMesh) return;
+            o.frustumCulled = false;
+            for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+              if (m.name === "Clown_MouthDark") continue;
+              m.side = THREE.FrontSide;
+              m.needsUpdate = true;
+            }
+          });
+          const obj = new THREE.Group();
+          obj.add(model);
+          const ang = Math.random() * Math.PI * 2, r = 6 + Math.random() * 3;
+          const x = Math.sin(ang) * r, z = -Math.cos(ang) * r;
+          obj.position.set(x, -2, z);
+          obj.rotation.y = Math.atan2(-x, -z); // лицом (+Z модели) к наблюдателю
+          scene.add(obj);
+          // рамка нажатия — отдельный объект сцены: каждый кадр переносится туда, где сейчас таз клоуна
+          const proxy = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
+          proxy.position.set(x, -2 + 0.85, z);
+          proxy.userData.kind = "clown";
+          scene.add(proxy);
+          // глаза (для «выката») и форма «открытый рот» (MouthOpen)
+          const eyes = ["Clown_Eye_L", "Clown_Eye_R"].map((n) => model.getObjectByName(n)).filter(Boolean).map((e) => ({ e, pos: e.position.clone(), scl: e.scale.clone() }));
+          // глаза при выкате: белки — красноватые, радужка и зрачок — чёрные; в обычном состоянии — как в текстуре
+          const bulgeU = uniform(0);
+          for (const ey of eyes)
+            ey.e.traverse((o) => {
+              if (!o.isMesh || !o.material?.map) return;
+              const m0 = o.material;
+              const t = texture(m0.map, uv());
+              const lum = dot(t.rgb, vec3(0.299, 0.587, 0.114));
+              const sat = max(max(t.r, t.g), t.b).sub(min(min(t.r, t.g), t.b));
+              const sclera = smoothstep(0.45, 0.65, lum).mul(float(1).sub(smoothstep(0.08, 0.2, sat))); // белок: светлый и неокрашенный
+              const crazy = mix(vec3(0.012, 0.0, 0.0), vec3(0.9, 0.36, 0.32), sclera);
+              const nm = new THREE.MeshStandardNodeMaterial({ roughness: m0.roughness, metalness: m0.metalness });
+              nm.colorNode = mix(t.rgb, crazy, bulgeU);
+              o.material = nm;
+            });
+          const mouthMeshes = [];
+          model.traverse((o) => o.morphTargetDictionary && o.morphTargetDictionary.MouthOpen !== undefined && mouthMeshes.push(o));
+          const mixer = new THREE.AnimationMixer(model);
+          const dance = mixer.clipAction(gltf.animations.find((a) => a.name === "Clown_Thriller"));
+          const laugh = mixer.clipAction(gltf.animations.find((a) => a.name === "Clown_Laugh"));
+          laugh.setLoop(THREE.LoopOnce, 1);
+          laugh.clampWhenFinished = true;
+          dance.play();
+          dance.time = Math.random() * dance.getClip().duration;
+          const c = { obj, mixer, dance, laugh, proxy, eyes, bulgeU, mouthMeshes, mouth: 0, bulge: 0, turn: null, analyser: null, laughing: false, pos: new THREE.Vector2(x, z), radius: 0.6, home: obj.position.clone() };
+          // Перемещение по площадке задаёт таз: в анимациях он гуляет по горизонтали. Чтобы не было рывков,
+          // каждый следующий отрезок (новый цикл танца, смех, возврат в танец) начинается там, где клоун физически стоит
+          const hips = model.getObjectByName("mixamorigHips");
+          c.hips = hips;
+          const trackOf = (clip) => clip.tracks.find((t) => t.name === "mixamorigHips.position");
+          const dTr = trackOf(dance.getClip()), lTr = trackOf(laugh.getClip());
+          const lOrig = lTr.values.slice();
+          const at = (tr, t) => new THREE.Vector3().fromArray(tr.createInterpolant().evaluate(t));
+          const M3 = new THREE.Matrix3();
+          const toWorld = (v) => (hips.parent.updateWorldMatrix(true, false), v.clone().applyMatrix3(M3.setFromMatrix4(hips.parent.matrixWorld)));
+          const toLocal = (v) => (hips.parent.updateWorldMatrix(true, false), v.clone().applyMatrix3(M3.setFromMatrix4(hips.parent.matrixWorld).invert()));
+          const horiz = (v) => ((v.y = 0), v);
+          const dStart = at(dTr, 0), dEnd = at(dTr, dance.getClip().duration);
+          const syncPos = () => c.pos.set(obj.position.x, obj.position.z);
+          // конец цикла танца: продолжить с конечной точки, а не прыгать в начальную; ушёл далеко — следующий цикл развёрнутым
+          mixer.addEventListener("loop", (e) => {
+            if (e.action !== dance) return;
+            // точка, где клоун закончил цикл: фактическое положение таза сейчас (поза ещё конечная)
+            obj.updateMatrixWorld(true);
+            const pv = hips.getWorldPosition(new THREE.Vector3());
+            obj.position.add(horiz(toWorld(dEnd.clone().sub(dStart))));
+            obj.updateMatrixWorld(true);
+            if (obj.position.distanceTo(c.home) > 3.5) {
+              // ушёл далеко — следующий цикл развёрнутым на 180° вокруг точки, где закончил: хореография ведёт обратно
+              obj.position.set(2 * pv.x - obj.position.x, obj.position.y, 2 * pv.z - obj.position.z);
+              obj.rotation.y += Math.PI;
+              obj.updateMatrixWorld(true);
+            }
+            syncPos();
+          });
+          // смех стартует ровно там, где сейчас таз в танце (сдвиг дорожки таза в смехе)
+          c.alignLaugh = () => {
+            const off = toLocal(horiz(toWorld(at(dTr, dance.time).sub(new THREE.Vector3(lOrig[0], lOrig[1], lOrig[2])))));
+            for (let i = 0; i < lOrig.length; i += 3) {
+              lTr.values[i] = lOrig[i] + off.x;
+              lTr.values[i + 1] = lOrig[i + 1] + off.y;
+              lTr.values[i + 2] = lOrig[i + 2] + off.z;
+            }
+          };
+          // смех закончился — плавно обратно в танец с прерванного места; клоун сдвигается туда, куда ушёл за время смеха
+          mixer.addEventListener("finished", (e) => {
+            if (e.action !== laugh) return;
+            c.analyser = null;
+            const n = lTr.values.length;
+            const lEnd = new THREE.Vector3(lTr.values[n - 3], lTr.values[n - 2], lTr.values[n - 1]);
+            obj.position.add(horiz(toWorld(lEnd.sub(at(dTr, dance.time)))));
+            syncPos();
+            c.laughing = false;
+            dance.paused = false;
+            dance.enabled = true;
+            dance.setEffectiveWeight(1);
+            dance.crossFadeFrom(laugh, 0.4, false);
+          });
+          sky.clown = c;
+          clownTask();
+        });
         // --- летучие мыши: «Bat», ice9 (theice9), Sketchfab, CC BY 4.0. Голова модели — +X, крылья — вдоль Z, размах 2.74 ед.
         // Три мыши летают по восьмёркам (лемниската Бернулли) у наблюдателя; в сумерках и ночью
         sky.bats = [];
@@ -2563,6 +2677,7 @@
           const proxies = [];
           for (const h of sky.herd || []) if (h.obj.visible) h.obj.traverse((o) => o.userData.kind && proxies.push(o));
           for (const t of sky.toads || []) if (t.obj.visible) proxies.push(t.proxy);
+          if (sky.clown?.obj.visible) proxies.push(sky.clown.proxy);
           const hit = _ray.intersectObjects(proxies, false)[0];
           return hit ? { kind: hit.object.userData.kind, obj: hit.object, ref: hit.object.userData.ref || null } : null;
         };
@@ -2674,7 +2789,9 @@
           // клик по животному — его голос (даже при выключенном фоне: это явное действие)
           const a = animalAt(e);
           if (a) {
-            soundStart().then(() => (a.ref ? animalVoice(a.ref, true) : soundAt("croak", a.obj, 1.6, 0.95 + Math.random() * 0.1, true)));
+            soundStart().then(() =>
+              a.kind === "clown" ? clownLaugh() : a.ref ? animalVoice(a.ref, true) : soundAt("croak", a.obj, 1.6, 0.95 + Math.random() * 0.1, true),
+            );
             return;
           }
           if (e.pointerType === "touch") updateHover(e); // наведения на телефоне нет — подсвечиваем по тапу
@@ -2954,7 +3071,7 @@
         if (sky.loaded) {
           skyLoadBegin([], true); // всё загружено и подготовлено — без шторки, плавное проявление
         } else if (!sky.ready) {
-          const steps = ["Grass", "Stars", "Constellations", "Places", "Fish", "Rhinos", "Elephants", "Running rhino", "Toads", "Bats", "Weather", "Scene"];
+          const steps = ["Grass", "Stars", "Constellations", "Places", "Fish", "Rhinos", "Elephants", "Running rhino", "Toads", "Bats", "Clown", "Weather", "Scene"];
           if (SND.on && !SND.ctx) steps.push("Sounds");
           skyLoadBegin(steps, false);
         } else {
@@ -3004,6 +3121,7 @@
         elephant2: "assets/sounds/elephant_2.mp3",
         elephant3: "assets/sounds/elephant_3.mp3",
         elephant4: "assets/sounds/elephant_4.mp3",
+        clownLaugh: "assets/sounds/clown_laugh.mp3", // «Horrible Laugh #1», BigSoundBank #0475, CC0; растянут до 5.66 с (длина анимации смеха)
       };
       const SND = { ctx: null, master: null, buf: {}, beds: {}, on: true, nextFrog: 0, nextRhino: 0, voices: new Set() };
       // браузер разрешает звук только после действия пользователя; звуки (3.6 МБ) грузятся при открытии окна неба —
@@ -3041,7 +3159,7 @@
       // разовый звук в мире окна неба: 3D-источник (PannerNode, HRTF). Слушатель — камера (обновляется каждый кадр),
       // источник — точка или объект (жаба, носорог): поворот камеры и движение животного сразу меняют звучание.
       // force — играть и при выключенном фоне (клик по животному — явное действие)
-      function soundAt(name, where, gain = 1, rate = 1, force = false) {
+      function soundAt(name, where, gain = 1, rate = 1, force = false, tap = false) {
         if (name === "croak") name = "croak" + (1 + ((Math.random() * 8) | 0)); // одно случайное «ква» из восьми
         if (name === "elephant") name = "elephant" + (1 + ((Math.random() * 4) | 0)); // один из четырёх голосов слона
         if ((!SND.on && !force) || !SND.ctx || !SND.buf[name] || !sky.open) return;
@@ -3055,9 +3173,19 @@
         const voice = { pn, obj: where.isObject3D ? where : null, pos: where.isObject3D ? null : where.clone() };
         setPannerPos(voice);
         src.connect(g).connect(pn).connect(SND.on ? SND.master : ctx.destination);
+        let an = null;
+        if (tap) {
+          // анализатор громкости (для рта клоуна); подключён к беззвучному выходу, чтобы браузер его обсчитывал
+          an = ctx.createAnalyser();
+          an.fftSize = 512;
+          const mute = ctx.createGain();
+          mute.gain.value = 0;
+          g.connect(an).connect(mute).connect(ctx.destination);
+        }
         SND.voices.add(voice);
         src.onended = () => SND.voices.delete(voice);
         src.start();
+        return an;
       }
       const _vp = new THREE.Vector3(), _vf = new THREE.Vector3();
       function setPannerPos(v) {
@@ -3192,6 +3320,7 @@
         const list = [
           ...(sky.herd || []).map((h) => ({ object: h.obj, radius: h.sp.radius * 0.8 })),
           ...(sky.toads || []).map((t) => ({ object: t.obj, radius: 0.35 })),
+          ...(sky.clown ? [{ object: sky.clown.proxy, radius: 0.7 }] : []), // клоун не тонет в траве (по фактическому месту)
         ]
           .sort((a, b) => a.object.position.lengthSq() - b.object.position.lengthSq())
           .slice(0, 16);
@@ -3260,9 +3389,93 @@
           if (o.crawlTo && distToSeg(o.crawlTo) < 0.9) return false;
         }
         for (const h of sky.herd || []) if (distToSeg(h.pos) < h.radius + t.radius + 1.0) return false;
+        if (sky.clown && distToSeg(sky.clown.pos) < sky.clown.radius + t.radius + 0.4) return false;
         return true;
       };
       const yawDir = (yaw) => new THREE.Vector2(-Math.cos(yaw), Math.sin(yaw)); // морда модели — в −x
+      // клоун: танец; по нажатию — смех (плавный переход из текущей позы), звук ровно на длину анимации, затем снова танец
+      let clownLast = performance.now();
+      function updateClown() {
+        const c = sky.clown;
+        if (!c) return;
+        const now = performance.now();
+        const dt = Math.min((now - clownLast) / 1000, 0.1);
+        clownLast = now;
+        c.obj.visible = !sky.isWater;
+        c.proxy.visible = c.obj.visible;
+        if (!c.obj.visible) return;
+        // поворот лицом к камере перед смехом: вокруг таза, без сдвига
+        if (c.turn) {
+          const k = Math.min((now - c.turn.t0) / c.turn.dur, 1), e = k * k * (3 - 2 * k);
+          const ang = c.turn.from + c.turn.d * e;
+          const dA = ang - c.obj.rotation.y;
+          const px = c.turn.pv.x, pz = c.turn.pv.z;
+          const ox = c.obj.position.x - px, oz = c.obj.position.z - pz;
+          const cs = Math.cos(dA), sn = Math.sin(dA);
+          c.obj.position.x = px + ox * cs + oz * sn;
+          c.obj.position.z = pz - ox * sn + oz * cs;
+          c.obj.rotation.y = ang;
+          if (k >= 1) {
+            c.turn = null;
+            startLaugh(c);
+          }
+        }
+        c.mixer.update(dt);
+        // фактическое место клоуна — по тазу: рамка нажатия, столкновения, трава
+        c.obj.updateMatrixWorld(true);
+        const hp = c.hips.getWorldPosition(_clownV);
+        c.proxy.position.set(hp.x, -2 + 0.85, hp.z);
+        c.pos.set(hp.x, hp.z);
+        // рот — по громкости смеха (быстро открывается, медленнее закрывается)
+        let target = 0;
+        if (c.analyser) {
+          c.analyser.getFloatTimeDomainData(_clownBuf);
+          let sum = 0;
+          for (let i = 0; i < _clownBuf.length; i++) sum += _clownBuf[i] * _clownBuf[i];
+          target = Math.min(1, Math.sqrt(sum / _clownBuf.length) * 7);
+        }
+        c.mouth += (target - c.mouth) * (1 - Math.exp(-dt * (target > c.mouth ? 30 : 12)));
+        for (const m of c.mouthMeshes) m.morphTargetInfluences[m.morphTargetDictionary.MouthOpen] = c.mouth;
+        // глаза «на выкате» во время смеха: вдвое больше и вперёд из орбит; после — обратно
+        const bt = c.laughing && !c.turn ? 1 : 0;
+        c.bulge += (bt - c.bulge) * (1 - Math.exp(-dt * (bt ? 8 : 4)));
+        c.bulgeU.value = c.bulge; // цвет глаз — вместе с выкатом
+        const fx = Math.sin(c.obj.rotation.y), fz = Math.cos(c.obj.rotation.y);
+        for (const ey of c.eyes) {
+          ey.e.position.copy(ey.pos);
+          ey.e.scale.copy(ey.scl).multiplyScalar(1 + c.bulge);
+          if (c.bulge > 1e-3) {
+            ey.e.parent.updateMatrixWorld(true);
+            const w = ey.e.parent.localToWorld(ey.pos.clone());
+            w.x += fx * 0.015 * c.bulge;
+            w.z += fz * 0.015 * c.bulge;
+            ey.e.position.copy(ey.e.parent.worldToLocal(w));
+          }
+        }
+      }
+      const _clownV = new THREE.Vector3(), _clownBuf = new Float32Array(512);
+      function clownLaugh() {
+        const c = sky.clown;
+        if (!c || c.laughing) return;
+        c.laughing = true;
+        c.dance.paused = true; // танец замирает на текущей позе
+        // сначала — лицом к камере (камера в начале координат), поворот вокруг таза за 0.5 с
+        c.obj.updateMatrixWorld(true);
+        const pv = c.hips.getWorldPosition(new THREE.Vector3());
+        const want = Math.atan2(-pv.x, -pv.z); // +Z модели — на камеру
+        let d = ((want - c.obj.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        c.turn = { t0: performance.now(), dur: 500, from: c.obj.rotation.y, d, pv };
+      }
+      // смех — после поворота: плавный переход из позы, звук ровно на длину анимации, рот — по громкости звука
+      function startLaugh(c) {
+        c.alignLaugh(); // смех начинается там, где сейчас таз
+        c.laugh.reset();
+        c.laugh.setEffectiveWeight(1);
+        c.laugh.play();
+        c.laugh.crossFadeFrom(c.dance, 0.3, false);
+        c.analyser = soundAt("clownLaugh", c.obj, 1.6, 1, true, true); // 5.66 с — длина анимации смеха
+      }
+
       // летучие мыши: восьмёрки с постоянной скоростью, курс по касательной, крен на поворотах; в сумерках и ночью
       let batLast = performance.now();
       const lemn = (b, t) => {
@@ -3554,6 +3767,12 @@
               }
             }
           }
+          if (sky.clown)
+            for (const h of H) {
+              const c = sky.clown, minD = h.radius + c.radius;
+              const d = h.pos.clone().sub(c.pos), dist = d.length();
+              if (dist < minD && dist > 1e-4) h.pos.addScaledVector(d, (minD - dist) / dist);
+            }
           for (const h of H)
             for (const t of sky.toads || []) {
               const minD = h.radius + t.radius;
@@ -3655,6 +3874,7 @@
         updateFish();
         updateHerd();
         updateToads();
+        updateClown();
         updateTorch(sH.altitude);
         updateBats(sH.altitude);
         soundUpdate(day, sky.nightU.value);
@@ -4095,6 +4315,7 @@
             "assets/elephant.glb",
             "assets/rhino_running.glb",
             "assets/bat.glb",
+            "assets/clown.glb",
             "textures/sky/stars.6.json",
             "textures/sky/constellations.lines.json",
             "textures/sky/constellations.bounds.json",
