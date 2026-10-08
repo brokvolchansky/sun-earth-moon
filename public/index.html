@@ -83,7 +83,7 @@
       }
       #constTip {
         position: fixed;
-        z-index: 6;
+        z-index: 2147483100;
         pointer-events: none;
         padding: 3px 9px;
         border-radius: 5px;
@@ -104,7 +104,7 @@
       }
       #constInfo {
         position: fixed;
-        z-index: 7;
+        z-index: 2147483100;
         width: min(360px, calc(100vw - 24px));
         max-height: min(70vh, 560px);
         overflow-y: auto;
@@ -152,6 +152,57 @@
         line-height: 1;
         cursor: pointer;
       }
+      /* атрибут hidden прячет элемент всегда — даже если в его стилях задан display (flex и т. п.) */
+      [hidden] {
+        display: none !important;
+      }
+      #skyPanel.max {
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100% !important;
+        border-radius: 0;
+        border: none;
+        z-index: 2147483000; /* выше всего, включая плашку инспектора three.js — она перекрывала кнопки заголовка */
+      }
+      #skyCanvasWrap {
+        position: relative;
+      }
+      #skyLoader {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: rgba(6, 6, 26, 0.82);
+        font: 12px system-ui, sans-serif;
+        color: #c9d4f0;
+        z-index: 3;
+        transition: opacity 0.8s ease;
+        pointer-events: none;
+      }
+      #skyLoader.done {
+        opacity: 0;
+      }
+      #skyLoader .track {
+        width: min(260px, 60%);
+        height: 5px;
+        border-radius: 3px;
+        background: rgba(140, 160, 210, 0.18);
+        overflow: hidden;
+      }
+      #skyLoader .bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #ffb347, #ffe08a);
+        transition: width 0.25s ease;
+      }
+      #skyLoader .step {
+        color: #8a95b5;
+      }
       #legend b {
         color: #c9d4f0;
         font-weight: 600;
@@ -168,7 +219,7 @@
         border: 1px solid rgba(140, 160, 210, 0.35);
         font: 13px system-ui, sans-serif;
         color: #d6def5;
-        z-index: 5;
+        z-index: 2147483100;
         pointer-events: none;
         transition: opacity 0.3s ease, transform 0.3s ease;
         white-space: pre-wrap;
@@ -408,7 +459,7 @@
     </ul>
     <div id="toast"></div>
     <div id="skyPanel" hidden>
-      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button><button class="skyBtn" id="skySound" type="button" title="Sound on / off">🔊 Sound</button><button class="skyBtn" id="skyTorch" type="button" title="Flashlight on / off (lights up in the dark)">🔦 Torch</button></span><button id="skyClose" title="Close">×</button></div>
+      <div id="skyHead"><span id="skyTitle">Sky</span><span id="skyBtns"><button class="skyBtn" id="btnSun">☀ Sun</button><button class="skyBtn" id="btnMoon">☾ Moon</button><button class="skyBtn" id="skySound" type="button" title="Sound on / off">🔊 Sound</button><button class="skyBtn" id="skyTorch" type="button" title="Flashlight on / off (lights up in the dark)">🔦 Torch</button></span><button class="skyBtn" id="skyFull" type="button" title="Full screen (Esc — exit)">⛶</button><button id="skyClose" title="Close">×</button></div>
       <div id="skyView">
         <canvas id="skyCanvas"></canvas>
         <button class="skyMark" id="markSun" title="Turn to the Sun" hidden>☀</button>
@@ -423,6 +474,7 @@
       <button class="barBtn" id="goSun" type="button" title="Fly to the Sun and follow it">☀ Sun</button>
       <button class="barBtn" id="goEarth" type="button" title="Fly to Earth and follow it">🌍 Earth</button>
       <button class="barBtn" id="goMoon" type="button" title="Fly to the Moon and follow it">☾ Moon</button>
+      <button class="barBtn" id="mainFull" type="button" title="Full screen (Esc — exit)">⛶</button>
     </div>
     <dialog id="creditsDlg" aria-labelledby="creditsTitle">
       <header><h2 id="creditsTitle">Credits &amp; licenses</h2><button id="creditsClose" type="button" aria-label="Close">×</button></header>
@@ -446,19 +498,24 @@
         <ul>
           <li>Earth (day, relief, water/land mask): <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> <span class="lic">CC BY 4.0</span></li>
           <li>Moon: <a href="https://svs.gsfc.nasa.gov/4720" target="_blank" rel="noopener">CGI Moon Kit</a>, NASA's Scientific Visualization Studio</li>
+          <li>Water ripples (normal map <code>waternormals.jpg</code>): <a href="https://github.com/mrdoob/three.js/tree/dev/examples/textures" target="_blank" rel="noopener">three.js examples</a> <span class="lic">MIT</span></li>
         </ul>
         <h3>3D models</h3>
         <ul>
           <li>Mackerel: <a href="https://sketchfab.com/3d-models/atlantic-mackerel-animated-and-game-ready-eca6071c26fc4013b8c94a3f37a434c7" target="_blank" rel="noopener">“Atlantic Mackerel (Animated and Game-ready)”</a> by 1shxxn <span class="lic">CC BY 4.0</span></li>
           <li>Rhino: <a href="https://sketchfab.com/3d-models/rhino-animation-walk-a915d9179fe6422b9d669a3a0d726b8e" target="_blank" rel="noopener">“Rhino Animation Walk”</a> by GremorySaiyan <span class="lic">CC BY 4.0</span></li>
+          <li>Running rhino: <a href="https://sketchfab.com/3d-models/animated-3d-grey-rhino-running-loop-2345603eec5e4e54a293c39833684525" target="_blank" rel="noopener">“Animated 3D Grey Rhino Running Loop”</a> by LasquetiSpice <span class="lic">CC BY 4.0</span></li>
+          <li>Elephant: <a href="https://sketchfab.com/3d-models/elephant-4ae161372d6a4219a87340339d1ffe03" target="_blank" rel="noopener">“Elephant”</a> by Rukh3D <span class="lic">CC BY 4.0</span></li>
+          <li>Bat: <a href="https://sketchfab.com/3d-models/bat-8719886cf8f645ca9d53d766976baf9c" target="_blank" rel="noopener">“Bat”</a> by ice9 <span class="lic">CC BY 4.0</span></li>
           <li>Japanese toad (<i>Bufo japonicus</i>) with katydid: <a href="https://sketchfab.com/3d-models/cc0-japanese-toad-62afb780965f48b9be897e07294480eb" target="_blank" rel="noopener">“CC0 Japanese Toad”</a> by ffish.asia / floraZia.com <span class="lic">CC0</span></li>
         </ul>
         <h3>Sounds</h3>
         <ul>
           <li>Night meadow, countryside, wind in grass, splashes: <a href="https://bigsoundbank.com/" target="_blank" rel="noopener">BigSoundBank</a> (Joseph Sardin) <span class="lic">CC0</span></li>
           <li>Sea waves: <a href="https://bigsoundbank.com/sound-0266-sea-waves.html" target="_blank" rel="noopener">BigSoundBank</a> (Denis Chardonnet) <span class="lic">CC0</span></li>
-          <li>Toad croak: <a href="https://pixabay.com/sound-effects/nature-frog-sound-568831/" target="_blank" rel="noopener">“Frog Sound”</a> by u_dtw7a5lpx2 <span class="lic">Pixabay Content License</span></li>
+          <li>Toad croak (cut into single croaks): <a href="https://pixabay.com/sound-effects/nature-frog-sound-568831/" target="_blank" rel="noopener">“Frog Sound”</a> by u_dtw7a5lpx2 <span class="lic">Pixabay Content License</span></li>
           <li>Rhino: <a href="https://pixabay.com/sound-effects/indian-rhinoceros-rhinoceros-unicornis-95946/" target="_blank" rel="noopener">“Indian rhinoceros (Rhinoceros unicornis)”</a> by Breviceps (Freesound) <span class="lic">Pixabay Content License</span></li>
+          <li>Elephant (cut into single calls): <a href="https://pixabay.com/sound-effects/nature-elephant-58368/" target="_blank" rel="noopener">“Elephant”</a> by geronimo83 (Freesound) <span class="lic">Pixabay Content License</span></li>
         </ul>
         <h3>Libraries</h3>
         <ul>
@@ -782,8 +839,9 @@
         const [day, spec, nrm, cities] = await Promise.all([
           opt(track(loadTexturePromise("textures/earth_day_4k.jpg"), "Earth surface")),
           opt(track(loadTexturePromise("textures/earth_specular_4k.jpg"), "Water and land")),
-          opt(track(loadTexturePromise("textures/earth_normal_4k.png"), "Earth relief")),
-          opt(track(fetch("textures/cities.bin").then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))), "Settlements")),
+          opt(track(loadTexturePromise("textures/earth_normal_4k.png"), "Earth relief")), // исходный PNG без потерь (JPEG смазывал рельеф)
+          // огни: широта/долгота int16 (точность 150–300 м), население float32 — 1.37 МБ вместо 2.05 МБ
+          opt(track(fetch("textures/cities_q.bin").then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))), "Settlements")),
         ]);
         if (day) {
           day.colorSpace = THREE.SRGBColorSpace;
@@ -793,7 +851,17 @@
         earthDayTex = day;
         earthSpecTex = spec;
         earthNormalTex = nrm;
-        cityData = cities ? new Float32Array(cities) : null;
+        // распаковка в прежний формат [lat, lon, pop] float32
+        if (cities) {
+          const n = cities.byteLength / 8;
+          const qa = new Int16Array(cities, 0, n), qo = new Int16Array(cities, n * 2, n), pp = new Float32Array(cities, n * 4, n);
+          cityData = new Float32Array(n * 3);
+          for (let i = 0; i < n; i++) {
+            cityData[i * 3] = (qa[i] * 90) / 32767;
+            cityData[i * 3 + 1] = (qo[i] * 180) / 32767;
+            cityData[i * 3 + 2] = pp[i];
+          }
+        } else cityData = null;
         console.log("[diag] текстуры Земли:", !!day, !!spec, !!nrm, "| поселений:", cityData ? cityData.length / 3 : 0);
       }
 
@@ -924,12 +992,14 @@
       const perlinX = Fn(([dir, t]) => {
         const world = normalize(dir).add(12.45);
         let sum = float(0.0);
-        for (let o = 0; o < 5; o++) {
+        // 7 октав вместо 5 оригинала: на крупном Солнце (честные пропорции) мелкие детали были растянуты
+        const OCT = 7;
+        for (let o = 0; o < OCT; o++) {
           const f = Math.pow(2, o); // f *= 2.0; a = uH^o = 1
           // в fbm p.w += 100 после каждого отсчёта X -> для октавы o: w = t + 100*o; затем p*f
           sum = sum.add(snoise4(vec4(world.mul(6.0 * f), t.add(100.0 * o).mul(f))));
         }
-        const fx = sum.mul(0.25).add(0.5);
+        const fx = sum.mul(0.25 * Math.sqrt(5 / OCT)).add(0.5); // контраст как у 5 октав (сумма независимых октав растёт как √N)
         const modulate = max(snoise4(vec4(world.mul(2.0), t)), 0.0);
         return clamp(mix(fx, fx.mul(modulate), 0.72), 0.0, 1.0);
       }).setLayout({
@@ -968,7 +1038,7 @@
         // getAlpha() при uVisibility=1 всегда = 1 (smoothstep(1,1.5, x>=1.5)) -> сфера непрозрачна
         const mat = new THREE.MeshBasicNodeMaterial({ fog: false });
         mat.colorNode = col;
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(SUN_SPHERE_R, 64, 64), mat);
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(SUN_SPHERE_R, 128, 128), mat); // 128 сегментов: гладкий край вблизи
         mesh.renderOrder = 0;
         sunGroup.add(mesh);
       }
@@ -1014,13 +1084,13 @@
 
       // ---------- sunRaysVS/FS.glsl ----------
       function makeSunRays() {
-        const lineCount = 4095;
+        const lineCount = 8191; // вдвое больше волокон (оригинал 4095): тоньше и гуще
         const lineLength = 8;
         const totalVerts = lineCount * lineLength * 2;
         const aPos = new Float32Array(totalVerts * 3);
         const aPos0 = new Float32Array(totalVerts * 3);
         const aWireRand = new Float32Array(totalVerts * 4);
-        const indices = new Uint16Array(lineCount * (lineLength - 1) * 6);
+        const indices = new Uint32Array(lineCount * (lineLength - 1) * 6); // вершин > 65 535 — 32-битные индексы
         const base = new THREE.Vector3(), jitter = new THREE.Vector3(), held = new THREE.Vector3();
         let ip = 0, i0 = 0, ir = 0, ii = 0, rd0 = 0, rd1 = 0;
         for (let v = 0; v < lineCount; v++) {
@@ -1076,10 +1146,10 @@
         const dirW = normalize(p1w.sub(p0w));
         const vW = normalize(p0w.sub(cameraPosition));
         const sideW = normalize(cross(vW, dirW));
-        const width = float(0.03).mul(A.z).mul(float(1.0).sub(A.x)).mul(sunScaleU); // мировые единицы оригинала * k
+        const width = float(0.022).mul(A.z).mul(float(1.0).sub(A.x)).mul(sunScaleU); // тоньше оригинала (0.03): волокон вдвое больше
         const pWorld = p0w.add(sideW.mul(width));
 
-        const vOpacity = float(0.03).mul(W.w.add(0.5));
+        const vOpacity = float(0.016).mul(W.w.add(0.5)); // вдвое больше волокон — каждое прозрачнее (оригинал 0.03)
         const sd = vec3(W.w.mul(0.2).add(0.2)); // spectrum(aWireRandom.w * uHueSpread + uHue)
         const vColor = vec3(1.0).sub(smoothstep(vec3(0.0), vec3(0.25), abs(sd.add(vec3(-0.375, -0.5, -0.625)))));
         let alpha = float(1.0).sub(smoothstep(0.0, 1.0, abs(A.z)));
@@ -1105,21 +1175,21 @@
 
       // ---------- sunFlaresVS/FS.glsl ----------
       function makeSunFlares() {
-        const lineCount = 2047;
+        const lineCount = 4095; // вдвое больше волокон (оригинал 2047)
         const lineLength = 16;
         const totalVerts = lineCount * lineLength * 2;
         const aPos = new Float32Array(totalVerts * 3);
         const aPos0 = new Float32Array(totalVerts * 3);
         const aPos1 = new Float32Array(totalVerts * 3);
         const aWireRand = new Float32Array(totalVerts * 4);
-        const indices = new Uint16Array(lineCount * (lineLength - 1) * 6);
+        const indices = new Uint32Array(lineCount * (lineLength - 1) * 6); // вершин > 65 535 — 32-битные индексы
         const held = new THREE.Vector3(), d = new THREE.Vector3(), f = new THREE.Vector3();
         const p = new THREE.Vector3(), g = new THREE.Vector3();
         let s = 0, l = 0, c = 0, h = 0, u = 0;
         let m = Math.random(), _p = Math.random();
         const rnd3 = (v) => v.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
         for (let y = 0; y < lineCount; y++) {
-          if (Math.random() < 0.025 || y === 0) {
+          if (Math.random() < 0.0125 || y === 0) { // вдвое реже новый пучок: протуберанцев столько же, волокон в каждом вдвое больше
             rnd3(d);
             held.copy(d);
             held.add(rnd3(g).multiplyScalar(0.4)).normalize();
@@ -1182,13 +1252,13 @@
         const vW = normalize(pW.sub(cameraPosition));
         const sideW = normalize(cross(vW, dirW));
         const R = length(A0);
-        const width = float(0.005).mul(A.z).mul(float(1.0).add(animPhase)).mul(R).mul(sunScaleU);
+        const width = float(0.0038).mul(A.z).mul(float(1.0).add(animPhase)).mul(R).mul(sunScaleU); // тоньше (оригинал 0.005)
         const pWorld = pW.add(sideW.mul(width));
         // smoothstep(R, R*1.03, lenW) — в единицах оригинала (делим на k)
         const lenW = length(pWorld).div(sunScaleU);
         const vOpacity = smoothstep(R, R.mul(1.03), lenW)
           .mul(float(1.0).sub(animPhase))
-          .mul(0.2)
+          .mul(0.12) // прозрачнее (оригинал 0.2): волокон вдвое больше
           .toVarying("vFlareOpacity");
         // hue(v) = .6 + .6*cos(6.3*v + vec3(0,23,21)), v = aWireRandom.w*0.16 + 0.0
         const hv = W.w.mul(0.16);
@@ -1940,7 +2010,7 @@
 
         // --- трава: threejs-grass (AskAlice, Apache-2.0) — TSL/WebGPU, пресеты реальных видов,
         // пучки, ветер порывами, просвечивание на солнце; плоская земля на y = −2
-        sky.grassField = await Grass.create({
+        sky.grassField = await skyTask("Grass", Grass.create({
           camera: sky.camera, // камера окна неба (не основной сцены)
           scene, // сцена окна неба
           renderer: r,
@@ -1961,7 +2031,7 @@
           sun: sky.sunLightM,
           castShadow: false,
           receiveShadow: false,
-        });
+        }));
         // трава матовая, без «стеклянного» блика: у материала библиотеки roughness 0.6 и specularIntensity 0.18
         sky.grassField.material.roughness = 0.95;
         sky.grassField.material.specularIntensity = 0.03;
@@ -1969,7 +2039,9 @@
 
         // --- рыбка: «Atlantic Mackerel (Animated and Game-ready)», 1shxxn, Sketchfab, CC BY 4.0;
         // скелет 25 костей, анимации Swimming / Idle / Death
+        const fishTask = skyTaskStart("Fish");
         new GLTFLoader().load("assets/atlantic_mackerel_animated_and_game-ready.glb", (gltf) => {
+          fishTask();
           const model = gltf.scene;
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
@@ -2001,7 +2073,14 @@
           // animScale — ускорение анимации (у бизона клип очень медленный: цикл 4.17 с -> ~1.3 с)
           // spacing — желаемое расстояние между особями своего вида, м; cohesion — сила тяги к центру группы
           // radius — половина длины тела: столкновение исключено при любом повороте; mass — кто кого сдвигает
-          { key: "rhino", url: "assets/rhino_animation_walk.glb", count: 2, length: 3.8, footSpeed: 0.86, animScale: 1.0, radius: 1.95, mass: 2.2, spacing: 8.0, cohesion: 0.6 },
+          // proxy — невидимая рамка для наведения/клика [ширина, высота], м; sound — голос; label — шаг загрузки окна
+          { key: "rhino", label: "Rhinos", url: "assets/rhino_animation_walk.glb", count: 2, length: 3.8, footSpeed: 0.86, animScale: 1.0, radius: 1.95, mass: 2.2, spacing: 8.0, cohesion: 0.6, proxy: [1.3, 1.7], sound: "rhino" },
+          // слон: «Elephant», Rukh3D, Sketchfab, CC BY 4.0. Шаг «TRS|walk» замерен по стопам: 0.63 ед./с при длине 2.26 ед.
+          // -> при длине 6 м (с хоботом) 1.67 м/с; трубит — «TRS|idle Trumped»
+          { key: "elephant", label: "Elephants", url: "assets/elephant.glb", clip: "TRS|walk", trumpetClip: "TRS|idle Trumped", count: 3, length: 6.0, footSpeed: 1.67, animScale: 1.0, radius: 2.9, mass: 5.0, spacing: 9.0, cohesion: 0.6, proxy: [2.4, 3.3], sound: "elephant" },
+          // бегающий носорог: «Animated 3D Grey Rhino Running Loop», LasquetiSpice, Sketchfab, CC BY 4.0.
+          // Бег замерен по стопам: 3.58 ед./с при длине 2.71 ед. -> при длине 3.8 м 5.0 м/с (18 км/ч)
+          { key: "rhinoRun", label: "Running rhino", url: "assets/rhino_running.glb", count: 1, length: 3.8, footSpeed: 5.0, animScale: 1.0, radius: 1.95, mass: 2.2, spacing: 8.0, cohesion: 0, turnRate: 0.45, proxy: [1.3, 1.7], sound: "rhino" },
         ];
         const loadSpecies = (sp) =>
           new Promise((resolve) => {
@@ -2028,7 +2107,9 @@
           const rnd = (a, b) => a + Math.random() * (b - a);
           sky.groups = {};
           for (const sp of SPECIES) {
-            const gltf = await loadSpecies(sp);
+            const gltf = await skyTask(sp.label, loadSpecies(sp));
+            const walkClip = (sp.clip && gltf.animations.find((a) => a.name === sp.clip)) || gltf.animations[0];
+            const trumpetClip = sp.trumpetClip ? gltf.animations.find((a) => a.name === sp.trumpetClip) : null;
             const gAng = rnd(0, Math.PI * 2), gR = rnd(18, 28);
             const gCenter = new THREE.Vector2(Math.cos(gAng) * gR, Math.sin(gAng) * gR);
             const gHeading = gAng + Math.PI / 2 + rnd(-0.5, 0.5); // идут примерно по кругу вокруг наблюдателя
@@ -2050,14 +2131,20 @@
               const obj = new THREE.Group();
               obj.add(inner);
               scene.add(obj);
-              const proxy = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.7, sp.length * sizeK), new THREE.MeshBasicMaterial({ visible: false }));
-              proxy.position.y = 0.85;
+              const proxy = new THREE.Mesh(new THREE.BoxGeometry(sp.proxy[0] * sizeK, sp.proxy[1] * sizeK, sp.length * sizeK), new THREE.MeshBasicMaterial({ visible: false }));
+              proxy.position.y = (sp.proxy[1] * sizeK) / 2;
               proxy.userData.kind = sp.key;
               obj.add(proxy);
               const mixer = new THREE.AnimationMixer(model);
-              const action = mixer.clipAction(gltf.animations[0]);
+              const action = mixer.clipAction(walkClip);
               action.play();
-              action.time = rnd(0, gltf.animations[0].duration); // не в ногу
+              action.time = rnd(0, walkClip.duration); // не в ногу
+              let trumpet = null;
+              if (trumpetClip) {
+                trumpet = mixer.clipAction(trumpetClip);
+                trumpet.setLoop(THREE.LoopOnce, 1);
+                trumpet.clampWhenFinished = true;
+              }
               const oa = rnd(0, Math.PI * 2), orr = rnd(0.4, 1.0) * sp.spacing * 0.9 * Math.sqrt(n + 1);
               const heading = gHeading + rnd(-0.15, 0.15);
               sky.herd.push({
@@ -2069,17 +2156,59 @@
                 speed: sp.footSpeed * sp.animScale * sizeK, // шаг пропорционален размеру особи
                 radius: sp.radius * sizeK,
                 retarget: 0,
+                trumpet,
+                stopUntil: 0,
+                nextHoverSound: 0,
+                proxy,
               });
+              proxy.userData.ref = sky.herd[sky.herd.length - 1];
             }
-            console.log("[diag] стадо:", sp.key, "x" + sp.count, "размер модели", size.toArray().map((v) => +v.toFixed(2)), "анимация", gltf.animations[0].name, gltf.animations[0].duration.toFixed(2) + " с");
+            console.log("[diag] стадо:", sp.key, "x" + sp.count, "размер модели", size.toArray().map((v) => +v.toFixed(2)), "анимация", walkClip.name, walkClip.duration.toFixed(2) + " с");
           }
           updateGrassInteractors();
         })();
+
+        // --- летучие мыши: «Bat», ice9 (theice9), Sketchfab, CC BY 4.0. Голова модели — +X, крылья — вдоль Z, размах 2.74 ед.
+        // Три мыши летают по восьмёркам (лемниската Бернулли) у наблюдателя; в сумерках и ночью
+        sky.bats = [];
+        const batTask = skyTaskStart("Bats");
+        new GLTFLoader().load("assets/bat.glb", (gltf) => {
+          const clip = gltf.animations[0];
+          const rnd = (a, b) => a + Math.random() * (b - a);
+          for (let i = 0; i < 3; i++) {
+            const model = SkeletonUtils.clone(gltf.scene);
+            model.traverse((o) => o.isMesh && (o.frustumCulled = false));
+            model.scale.setScalar(0.5 / 2.74); // размах крыльев 0.5 м
+            const obj = new THREE.Group();
+            obj.rotation.order = "YXZ"; // курс, затем крен вокруг продольной оси (X — вперёд)
+            obj.add(model);
+            obj.visible = false;
+            scene.add(obj);
+            const mixer = new THREE.AnimationMixer(model);
+            const act = mixer.clipAction(clip);
+            act.play();
+            act.time = rnd(0, clip.duration);
+            act.timeScale = rnd(0.9, 1.15);
+            const ang = (i / 3) * Math.PI * 2 + rnd(-0.4, 0.4), dist = rnd(3, 7); // пролетают рядом с наблюдателем
+            sky.bats.push({
+              obj, mixer,
+              c: new THREE.Vector2(Math.cos(ang) * dist, Math.sin(ang) * dist), // центр восьмёрки
+              a: rnd(3, 5), // полуразмах восьмёрки, м
+              rot: rnd(0, Math.PI), // поворот восьмёрки
+              h: rnd(0.5, 3.0), // высота над землёй: 2.5–5 м (земля на −2)
+              v: rnd(5, 7), // скорость, м/с
+              t: rnd(0, Math.PI * 2),
+              bob: rnd(0, Math.PI * 2),
+            });
+          }
+          batTask();
+        });
 
         // --- жабы: «CC0 Japanese Toad» (Bufo japonicus), ffish.asia / floraZia.com, Sketchfab, CC0.
         // Анимация автора 26 с — охота: кузнечик подходит, бросок на 7.1 с, кузнечик исчезает (съеден) на 7.46 с, глотание.
         // Жабы сидят у наблюдателя неподвижно, каждая в своём ритме; носороги их обходят.
         sky.toads = [];
+        const toadTask = skyTaskStart("Toads");
         new GLTFLoader().load("assets/japanese_toad.glb", (gltf) => {
           const TOAD_COUNT = 14; // 14 жаб + 2 носорога = 16 — предел библиотеки травы на раздвигание
           const TOAD_SCALE = 2.0; // ×2 к настоящим ~21 см, иначе не разглядеть
@@ -2128,6 +2257,7 @@
           }
           updateGrassInteractors();
           console.log("[diag] жабы:", sky.toads.length, "анимация", clip.name, clip.duration.toFixed(2) + " с");
+          toadTask();
         });
 
         // стороны света
@@ -2144,17 +2274,23 @@
         cel.matrixAutoUpdate = false;
         scene.add(cel);
         sky.celestial = cel;
-        const [stars, lines] = await Promise.all([
-          fetch("textures/sky/stars.6.json").then((x) => x.json()),
-          fetch("textures/sky/constellations.lines.json").then((x) => x.json()),
-        ]);
+        const [stars, lines] = await skyTask(
+          "Stars",
+          Promise.all([
+            fetch("textures/sky/stars.6.json").then((x) => x.json()),
+            fetch("textures/sky/constellations.lines.json").then((x) => x.json()),
+          ]),
+        );
         cel.add(makeStars(stars.features));
         cel.add(makeConstellationLines(lines.features));
         // границы созвездий МАС и английские названия (d3-celestial, BSD-3) — подпись при наведении
-        Promise.all([
-          fetch("textures/sky/constellations.bounds.json").then((x) => x.json()),
-          fetch("textures/sky/constellations.json").then((x) => x.json()),
-        ])
+        skyTask(
+          "Constellations",
+          Promise.all([
+            fetch("textures/sky/constellations.bounds.json").then((x) => x.json()),
+            fetch("textures/sky/constellations.json").then((x) => x.json()),
+          ]),
+        )
           .then(([b, n]) => {
             // у Змеи (Ser) две части с одним кодом — справка общая, название по части
             const meta = {};
@@ -2174,19 +2310,23 @@
           const dc = document.createElement("canvas");
           dc.width = dc.height = 256;
           const g = dc.getContext("2d");
-          // кайма у края (потемнение к краю) и сплошной жёлтый диск с резким краем
-          g.fillStyle = "#ffa21f";
-          g.beginPath();
-          g.arc(128, 128, 124, 0, Math.PI * 2);
-          g.fill();
-          const gr = g.createRadialGradient(128, 128, 0, 128, 128, 118);
-          gr.addColorStop(0.0, "#fff3a8");
-          gr.addColorStop(0.55, "#ffe04a");
-          gr.addColorStop(1.0, "#ffc928");
-          g.fillStyle = gr;
-          g.beginPath();
-          g.arc(128, 128, 118, 0, Math.PI * 2);
-          g.fill();
+          // краевое потемнение по закону I(μ) = I0 · (1 − u·(1 − μ)), μ = √(1 − r²): к краю диск плавно темнеет,
+          // синий темнеет сильнее красного (u ≈ 0.75 / 0.6 / 0.5 для B / G / R — приближение), поэтому край чуть теплее.
+          // Никакой каймы: край — сглаженная граница ~1.5 px
+          const img = g.createImageData(256, 256);
+          const R0 = 124, base = [255, 250, 238], uK = [0.5, 0.6, 0.75];
+          for (let y = 0; y < 256; y++)
+            for (let x = 0; x < 256; x++) {
+              const dx = x + 0.5 - 128, dy = y + 0.5 - 128;
+              const r = Math.hypot(dx, dy) / R0;
+              const i = (y * 256 + x) * 4;
+              const a = Math.min(Math.max((1 - r) * R0 / 4, 0), 1); // мягкий край (4 px): растворяется в сиянии, не очерчивается
+              if (a <= 0) continue;
+              const mu = Math.sqrt(Math.max(0, 1 - Math.min(r, 1) ** 2));
+              for (let c = 0; c < 3; c++) img.data[i + c] = Math.round(base[c] * (1 - uK[c] * (1 - mu)));
+              img.data[i + 3] = Math.round(a * 255);
+            }
+          g.putImageData(img, 0, 0);
           const dt = new THREE.CanvasTexture(dc);
           dt.colorSpace = THREE.SRGBColorSpace;
           // непрозрачный жёлтый диск: цвет не смешивается с небом и не выгорает
@@ -2234,8 +2374,13 @@
 
         // размер окна неба: 600×360, на узком экране — по ширине экрана с теми же пропорциями
         const layoutSky = () => {
-          const w = Math.min(SKY_SIZE[0], innerWidth - 16);
-          const h = Math.round((w * SKY_SIZE[1]) / SKY_SIZE[0]);
+          let w = Math.min(SKY_SIZE[0], innerWidth - 16);
+          let h = Math.round((w * SKY_SIZE[1]) / SKY_SIZE[0]);
+          if (skyEl.panel.classList.contains("max")) {
+            const head = document.getElementById("skyHead").offsetHeight, info = skyEl.info.offsetHeight;
+            w = innerWidth;
+            h = Math.max(200, innerHeight - head - info);
+          }
           skyEl.panel.style.width = `${w}px`;
           skyEl.canvas.style.width = `${w}px`;
           skyEl.canvas.style.height = `${h}px`;
@@ -2279,6 +2424,35 @@
           drag = { x: e.clientX, y: e.clientY, yaw: sky.yaw, pitch: sky.pitch };
           skyEl.canvas.setPointerCapture(e.pointerId);
         });
+        // ---- полный экран (Fullscreen API): на весь экран уходит страница; окно места при этом растягивается
+        // на весь экран внутри неё — так подсказки созвездий, справка и прочие всплывающие элементы остаются видны ----
+        const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+        const enterFs = () => {
+          const el = document.documentElement;
+          return (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+        };
+        const exitFs = () => (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+        const setSkyMax = (on) => {
+          skyEl.panel.classList.toggle("max", on);
+          layoutSky();
+        };
+        document.getElementById("skyFull").addEventListener("click", async () => {
+          if (skyEl.panel.classList.contains("max")) {
+            setSkyMax(false);
+            if (fsElement()) exitFs();
+          } else {
+            setSkyMax(true);
+            if (!fsElement()) await enterFs()?.catch?.(() => {});
+            requestAnimationFrame(layoutSky);
+          }
+        });
+        const onFsChange = () => {
+          // выход из полного экрана (кнопкой или Esc) — окно места возвращается к обычному размеру
+          if (!fsElement() && skyEl.panel.classList.contains("max")) setSkyMax(false);
+          else layoutSky();
+        };
+        document.addEventListener("fullscreenchange", onFsChange);
+        document.addEventListener("webkitfullscreenchange", onFsChange);
         // фонарик: точка экрана под курсором (и пальцем) — туда светит луч
         skyEl.canvas.addEventListener("pointermove", (e) => {
           const r = skyEl.canvas.getBoundingClientRect();
@@ -2390,10 +2564,18 @@
           for (const h of sky.herd || []) if (h.obj.visible) h.obj.traverse((o) => o.userData.kind && proxies.push(o));
           for (const t of sky.toads || []) if (t.obj.visible) proxies.push(t.proxy);
           const hit = _ray.intersectObjects(proxies, false)[0];
-          return hit ? { kind: hit.object.userData.kind, obj: hit.object } : null;
+          return hit ? { kind: hit.object.userData.kind, obj: hit.object, ref: hit.object.userData.ref || null } : null;
         };
+        let hoverRef = null;
         const updateHover = (e) => {
-          if (!drag && animalAt(e)) {
+          const an = drag ? null : animalAt(e);
+          // наведение на носорога или слона — его голос (не чаще раза в 3 с на особь)
+          if (an?.ref && an.ref !== hoverRef && performance.now() > an.ref.nextHoverSound) {
+            an.ref.nextHoverSound = performance.now() + 3000;
+            animalVoice(an.ref);
+          }
+          hoverRef = an?.ref || null;
+          if (an) {
             setHighlight(null);
             constTip.hidden = true;
             skyEl.canvas.style.cursor = "pointer";
@@ -2498,7 +2680,7 @@
           // клик по животному — его голос (даже при выключенном фоне: это явное действие)
           const a = animalAt(e);
           if (a) {
-            soundStart().then(() => soundAt(a.kind === "toad" ? "croak" : "rhino", a.obj, a.kind === "toad" ? 1.6 : 1.4, 0.95 + Math.random() * 0.1, true));
+            soundStart().then(() => (a.ref ? animalVoice(a.ref, true) : soundAt("croak", a.obj, 1.6, 0.95 + Math.random() * 0.1, true)));
             return;
           }
           if (e.pointerType === "touch") updateHover(e); // наведения на телефоне нет — подсвечиваем по тапу
@@ -2522,6 +2704,10 @@
         );
         skyEl.close.addEventListener("click", () => {
           sky.open = false;
+          if (skyEl.panel.classList.contains("max")) {
+            skyEl.panel.classList.remove("max");
+            if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          }
           skyEl.panel.hidden = true;
           document.getElementById("constTip")?.setAttribute("hidden", "");
           document.getElementById("constInfo")?.setAttribute("hidden", "");
@@ -2653,10 +2839,115 @@
         return sky.waterMask[(y * 1024 + x) * 4] > 127;
       }
 
+      // индикатор загрузки окна места: список шагов задаётся при открытии (проценты не прыгают назад),
+      // шаг отмечается по реальному завершению загрузки
+      const SKYLOAD = { el: null, bar: null, step: null, pending: new Set(), total: 0, hideTimer: null, compiling: false, silent: false, guard: null };
+      // плавное проявление картинки окна (без шторки)
+      function skyFadeIn() {
+        const c = skyEl.canvas;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            c.style.transition = "opacity 0.6s ease";
+            c.style.opacity = "1";
+          }),
+        );
+      }
+      // загрузка окна завершена (или вышло время): шторка растворяется либо картинка проявляется
+      function skyLoadFinish() {
+        clearInterval(SKYLOAD.guard);
+        if (SKYLOAD.silent) {
+          skyFadeIn();
+          return;
+        }
+        SKYLOAD.el.classList.add("done");
+        SKYLOAD.hideTimer = setTimeout(() => (SKYLOAD.el.hidden = true), 850);
+        skyFadeIn();
+      }
+      // silent — файлы уже в кеше: без шторки, окно тёмное, проявляется плавно, когда сцена готова
+      function skyLoadBegin(steps, silent) {
+        if (!SKYLOAD.el) {
+          // обёртка вокруг картинки окна: шторка ложится ровно на неё, индикатор — в её центре
+          const wrap = document.createElement("div");
+          wrap.id = "skyCanvasWrap";
+          skyEl.canvas.parentNode.insertBefore(wrap, skyEl.canvas);
+          wrap.appendChild(skyEl.canvas);
+          const el = document.createElement("div");
+          el.id = "skyLoader";
+          el.innerHTML = '<div class="title"></div><div class="track"><div class="bar"></div></div><div class="step"></div>';
+          wrap.appendChild(el);
+          SKYLOAD.el = el;
+          SKYLOAD.bar = el.querySelector(".bar");
+          SKYLOAD.step = el.querySelector(".step");
+          SKYLOAD.title = el.querySelector(".title");
+        }
+        clearTimeout(SKYLOAD.hideTimer);
+        clearInterval(SKYLOAD.guard);
+        SKYLOAD.pending = new Set(steps);
+        SKYLOAD.total = steps.length;
+        SKYLOAD.compiling = false;
+        SKYLOAD.silent = !!silent;
+        // картинка окна — тёмная до готовности
+        skyEl.canvas.style.transition = "none";
+        skyEl.canvas.style.opacity = silent ? "0.06" : "1";
+        SKYLOAD.title.textContent = `Loading ${Math.abs(sky.lat).toFixed(1)}° ${sky.lat >= 0 ? "N" : "S"}, ${Math.abs(sky.lon).toFixed(1)}° ${sky.lon >= 0 ? "E" : "W"}`;
+        SKYLOAD.bar.style.width = "0%";
+        SKYLOAD.step.textContent = "Starting…";
+        SKYLOAD.el.classList.remove("done");
+        SKYLOAD.el.hidden = silent || steps.length === 0;
+        if (steps.length === 0) return skyLoadFinish();
+        // если загрузка затянулась — шторка остаётся, но показывает, что ещё не готово
+        SKYLOAD.guard = setInterval(() => {
+          if (!SKYLOAD.pending.size) return clearInterval(SKYLOAD.guard);
+          SKYLOAD.step.textContent = `Still loading: ${[...SKYLOAD.pending].join(", ")}`;
+        }, 10000);
+      }
+      function skyLoadDone(label) {
+        if (!SKYLOAD.pending.delete(label)) return;
+        const pct = Math.round(((SKYLOAD.total - SKYLOAD.pending.size) / SKYLOAD.total) * 100);
+        SKYLOAD.bar.style.width = `${pct}%`;
+        SKYLOAD.step.textContent = `${label} · ${pct}%`;
+        // всё загружено — последний шаг: сборка шейдеров всей сцены окна заранее, затем два готовых кадра
+        if (SKYLOAD.pending.size === 1 && SKYLOAD.pending.has("Scene") && !SKYLOAD.compiling) {
+          SKYLOAD.compiling = true;
+          SKYLOAD.step.textContent = `Preparing scene · ${pct}%`;
+          (async () => {
+            try {
+              // сборке шейдеров — не больше 8 с (при занятой видеокарте она может затянуться)
+              await sky.renderer.compileAsync(sky.scene, sky.camera); // до реального завершения сборки шейдеров
+            } catch (e) {
+              console.warn("[diag] compileAsync:", e);
+            }
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            skyLoadDone("Scene");
+          })();
+        }
+        if (SKYLOAD.pending.size === 0) {
+          if (!SKYLOAD.silent) sky.loaded = true; // все шаги реально завершены
+          skyLoadFinish();
+        }
+      }
+      const skyTask = (label, promise) => Promise.resolve(promise).finally(() => skyLoadDone(label));
+      const skyTaskStart = (label) => () => skyLoadDone(label);
+
       async function openSky(lat, lon) {
         sky.lat = lat;
         sky.lon = lon;
         skyEl.panel.hidden = false;
+        // шторка с индикатором — только когда действительно что-то грузится (первое открытие);
+        // если всё уже загружено — только плавное проявление картинки на новом месте (погода догрузится в фоне)
+        // Правило: шторка показывается, пока флаг sky.loaded не true; true ставится только после реальной полной загрузки
+        if (sky.loaded) {
+          skyLoadBegin([], true); // всё загружено и подготовлено — без шторки, плавное проявление
+        } else if (!sky.ready) {
+          const steps = ["Grass", "Stars", "Constellations", "Fish", "Rhinos", "Elephants", "Running rhino", "Toads", "Bats", "Weather", "Scene"];
+          if (SND.on && !SND.ctx) steps.push("Sounds");
+          skyLoadBegin(steps, false);
+        } else {
+          // загрузка ещё идёт (клик по другому месту) — шторка остаётся с прогрессом, меняется подпись места
+          SKYLOAD.el.hidden = false;
+          SKYLOAD.title.textContent = `Loading ${Math.abs(lat).toFixed(1)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(1)}° ${lon >= 0 ? "E" : "W"}`;
+        }
+        if (SND.on) soundStart(); // вызов в обработчике клика — браузер разрешает звук
         if (!sky.ready) sky.ready = initSky();
         await sky.ready;
         sky.open = true;
@@ -2667,9 +2958,9 @@
         const { sH, mH } = skyBodies(new Date(simTime));
         const target = mH.altitude > 0 ? mH : sH.altitude > 0 ? sH : { azimuth: 180, altitude: 20 };
         lookAtBody(target);
-        sky.pitch = Math.max(0.15, Math.min(1.2, sky.pitch));
+        sky.pitch = 0; // при смене места — горизонт ровно посередине окна по вертикали (азимут — на светило или на юг)
         sky.cloud = null;
-        fetchWeather();
+        skyTask("Weather", fetchWeather());
       }
 
       // ---------- звук окна неба (Web Audio): фон по месту и времени + отдельные звуки с панорамой ----------
@@ -2691,24 +2982,22 @@
         croak7: "assets/sounds/croak_7.mp3",
         croak8: "assets/sounds/croak_8.mp3",
         rhino: "assets/sounds/rhino.mp3", // «Indian rhinoceros», Breviceps (Freesound), Pixabay Content License
+        // «Elephant», geronimo83 (Freesound), Pixabay Content License — 4 самых громких голоса (трубят), вырезаны отдельно
+        elephant1: "assets/sounds/elephant_1.mp3",
+        elephant2: "assets/sounds/elephant_2.mp3",
+        elephant3: "assets/sounds/elephant_3.mp3",
+        elephant4: "assets/sounds/elephant_4.mp3",
       };
       const SND = { ctx: null, master: null, buf: {}, beds: {}, on: true, nextFrog: 0, nextRhino: 0, voices: new Set() };
-      // браузер разрешает звук только после действия пользователя: запускаем при первом клике/касании на странице
-      // (окно неба и так открывается кликом по Земле)
-      const unlockSound = () => {
-        if (SND.on) soundStart();
-        removeEventListener("pointerdown", unlockSound, true);
-        removeEventListener("keydown", unlockSound, true);
-      };
-      addEventListener("pointerdown", unlockSound, true);
-      addEventListener("keydown", unlockSound, true);
+      // браузер разрешает звук только после действия пользователя; звуки (3.6 МБ) грузятся при открытии окна неба —
+      // оно и так открывается кликом по Земле или кнопкой «Where am I»
       async function soundStart() {
         if (!SND.ctx) {
           SND.ctx = new AudioContext();
           SND.master = SND.ctx.createGain();
           SND.master.gain.value = 0;
           SND.master.connect(SND.ctx.destination);
-          await Promise.all(
+          await skyTask("Sounds", Promise.all(
             Object.entries(SOUND_FILES).map(async ([k, url]) => {
               try {
                 SND.buf[k] = await SND.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
@@ -2716,7 +3005,7 @@
                 console.warn("[diag] звук не загрузился:", url, e);
               }
             }),
-          );
+          ));
           // фоновые петли: играют всегда, громкость задаётся каждый кадр
           for (const k of ["night", "day", "wind", "sea"]) {
             if (!SND.buf[k]) continue;
@@ -2737,6 +3026,7 @@
       // force — играть и при выключенном фоне (клик по животному — явное действие)
       function soundAt(name, where, gain = 1, rate = 1, force = false) {
         if (name === "croak") name = "croak" + (1 + ((Math.random() * 8) | 0)); // одно случайное «ква» из восьми
+        if (name === "elephant") name = "elephant" + (1 + ((Math.random() * 4) | 0)); // один из четырёх голосов слона
         if ((!SND.on && !force) || !SND.ctx || !SND.buf[name] || !sky.open) return;
         const ctx = SND.ctx;
         const src = ctx.createBufferSource();
@@ -2782,6 +3072,17 @@
         }
       }
 
+      // голос животного стада: звук из его места; слон при этом останавливается и трубит (анимация синхронно со звуком)
+      function animalVoice(h, force = false) {
+        const now = performance.now();
+        if (h.sp.key === "elephant" && h.trumpet && now >= h.stopUntil) {
+          h.trumpeting = true;
+          h.action.fadeOut(0.3);
+          h.trumpet.reset().setEffectiveWeight(1).fadeIn(0.3).play();
+          h.stopUntil = now + h.trumpet.getClip().duration * 1000;
+        }
+        soundAt(h.sp.sound, h.obj, h.sp.key === "elephant" ? 1.6 : 1.4, 0.95 + Math.random() * 0.1, force);
+      }
       // каждый кадр: фон по реальным условиям (день/ночь, суша/вода, скорость ветра)
       function soundUpdate(day, night) {
         if (!SND.ctx) return;
@@ -2797,7 +3098,14 @@
           sea: land ? 0 : 0.7,
           wind: (0.1 + Math.min(ws / 15, 1) * 0.45) * (land ? 1 : 0.7),
         };
-        for (const [k, g] of Object.entries(SND.beds)) g.gain.setTargetAtTime(target[k], t, 1.5);
+        // смена «вода ↔ суша» — фоны переключаются быстро (~0.3 с); остальное (день/ночь, ветер) — плавно
+        const nowMs = performance.now();
+        if (SND.lastLand !== land) {
+          SND.lastLand = land;
+          SND.fastUntil = nowMs + 1000;
+        }
+        const tau = nowMs < (SND.fastUntil || 0) ? 0.12 : 1.5;
+        for (const [k, g] of Object.entries(SND.beds)) g.gain.setTargetAtTime(target[k], t, tau);
         // кваканье в сумерках и ночью на суше — от случайной жабы, с её места
         const now = performance.now();
         if (SND.on && land && night > 0.3 && sky.toads?.length && now > SND.nextFrog) {
@@ -2807,9 +3115,9 @@
         }
         // носороги изредка подают голос
         if (SND.on && land && sky.herd?.length && now > SND.nextRhino) {
-          SND.nextRhino = now + 35000 + Math.random() * 50000;
+          SND.nextRhino = now + 30000 + Math.random() * 40000;
           const h = sky.herd[(Math.random() * sky.herd.length) | 0];
-          soundAt("rhino", h.obj, 1.2, 0.95 + Math.random() * 0.1);
+          animalVoice(h); // носорог фыркает, слон останавливается и трубит
         }
       }
 
@@ -2863,10 +3171,13 @@
       // трава расступается вокруг носорогов и жаб (библиотека — не больше 16 объектов)
       function updateGrassInteractors() {
         if (!sky.grassField) return;
+        // предел библиотеки — 16 объектов: берём 16 ближайших к наблюдателю
         const list = [
           ...(sky.herd || []).map((h) => ({ object: h.obj, radius: h.sp.radius * 0.8 })),
           ...(sky.toads || []).map((t) => ({ object: t.obj, radius: 0.35 })),
-        ].slice(0, 16);
+        ]
+          .sort((a, b) => a.object.position.lengthSq() - b.object.position.lengthSq())
+          .slice(0, 16);
         sky.grassField.set({ interactors: list, interactionStrength: 1.6 });
       }
       // Перемещение тела жабы из её анимации: лапа на земле (в нижней точке своего хода), смещающаяся назад
@@ -2935,19 +3246,73 @@
         return true;
       };
       const yawDir = (yaw) => new THREE.Vector2(-Math.cos(yaw), Math.sin(yaw)); // морда модели — в −x
-      // фонарик: направление — из точки экрана под курсором, сила — по темноте
+      // летучие мыши: восьмёрки с постоянной скоростью, курс по касательной, крен на поворотах; в сумерках и ночью
+      let batLast = performance.now();
+      const lemn = (b, t) => {
+        const d = 1 + Math.sin(t) ** 2;
+        const x = (b.a * Math.cos(t)) / d, y = (b.a * Math.sin(t) * Math.cos(t)) / d;
+        const cr = Math.cos(b.rot), sr = Math.sin(b.rot);
+        return new THREE.Vector2(b.c.x + x * cr - y * sr, b.c.y + x * sr + y * cr);
+      };
+      function updateBats(sunAlt) {
+        if (!sky.bats?.length) return;
+        const now = performance.now();
+        const dt = Math.min((now - batLast) / 1000, 0.1);
+        batLast = now;
+        const show = sunAlt < 5; // летают в сумерках и ночью
+        for (const b of sky.bats) {
+          b.obj.visible = show;
+          if (!show) continue;
+          // шаг параметра так, чтобы скорость по дуге была постоянной
+          const p0 = lemn(b, b.t), p1 = lemn(b, b.t + 1e-3);
+          const ds = Math.max(p1.distanceTo(p0) / 1e-3, 1e-3);
+          const tPrev = b.t;
+          b.t += (b.v * dt) / ds;
+          const p = lemn(b, b.t), pa = lemn(b, b.t + 0.01), pb = lemn(b, tPrev);
+          const dir = pa.clone().sub(p).normalize();
+          const dirPrev = p.clone().sub(pb).normalize();
+          const turn = Math.atan2(dirPrev.x * dir.y - dirPrev.y * dir.x, dirPrev.dot(dir)) / Math.max(dt, 1e-3); // рад/с
+          b.bob += dt * 2.3;
+          b.obj.position.set(p.x, -2 + 2.0 + b.h + Math.sin(b.bob) * 0.3, p.y);
+          b.obj.rotation.y = Math.atan2(-dir.y, dir.x); // +X модели — по курсу
+          b.obj.rotation.x = THREE.MathUtils.lerp(b.obj.rotation.x, Math.max(-0.7, Math.min(0.7, -turn * 0.35)), 1 - Math.exp(-dt * 6)); // крен
+          b.mixer.update(dt);
+        }
+      }
+
+      // фонарик: направление — из точки экрана под курсором, сила — по высоте Солнца:
+      // загорается при Солнце ниже +4° (вечереет), в полную силу ниже −3° (сумерки и ночь)
       const _tRay = new THREE.Raycaster();
-      function updateTorch(night) {
+      function updateTorch(sunAlt) {
         if (!sky.torch) return;
-        const k = sky.torchOn ? Math.min(Math.max((night - 0.25) / 0.45, 0), 1) : 0; // сумерки -> ночь
+        const k = sky.torchOn ? Math.min(Math.max((4 - sunAlt) / 7, 0), 1) : 0;
         const sm = k * k * (3 - 2 * k);
         sky.torch.intensity = 40 * sm;
-        sky.torch.visible = sky.beam.visible = sm > 0.001;
+        // прожектор всегда в сцене (выключен = яркость 0): смена набора источников света
+        // заставила бы three.js пересобрать шейдеры всех освещаемых материалов (зависание ~2 с)
+        sky.beam.visible = sm > 0.001;
         sky.beamU.value = sm;
-        if (!sky.torch.visible) return;
+        if (sm <= 0.001) return;
+        // точка под курсором: животное, иначе земля (уровень травы или воды), иначе далеко в небе;
+        // фонарь (в руке, на 0.9 м ниже глаз) направляется точно в неё — центр пятна совпадает с курсором
         _tRay.setFromCamera(sky.torchNdc, sky.camera);
-        sky.torchDir.copy(_tRay.ray.direction);
+        const o = _tRay.ray.origin, d = _tRay.ray.direction;
+        let aim = null;
+        const proxies = [];
+        for (const h of sky.herd || []) if (h.obj.visible) h.obj.traverse((x) => x.userData.kind && proxies.push(x));
+        for (const t of sky.toads || []) if (t.obj.visible) proxies.push(t.proxy);
+        const hit = proxies.length ? _tRay.intersectObjects(proxies, false)[0] : null;
+        if (hit) aim = hit.point;
+        else {
+          const groundY = sky.isWater ? -2.25 : -1.8; // поверхность воды / середина высоты травы
+          if (d.y < -1e-4) {
+            const tt = (groundY - o.y) / d.y;
+            if (tt > 0 && tt < 200) aim = o.clone().addScaledVector(d, tt);
+          }
+          if (!aim) aim = o.clone().addScaledVector(d, 200);
+        }
         const p = sky.torch.position;
+        sky.torchDir.copy(aim).sub(p).normalize();
         sky.torch.target.position.copy(p).addScaledVector(sky.torchDir, 30);
         sky.torch.target.updateMatrixWorld();
         sky.beam.position.copy(p);
@@ -2955,7 +3320,7 @@
       }
 
       // жабы: охота по анимации, ползание с перемещением по кривой лап, прыжки в свободные моменты; только на суше
-      let toadLast = performance.now();
+      let toadLast = performance.now(), grassPick = 0;
       function updateToads() {
         if (!sky.toads?.length) return;
         const now = performance.now();
@@ -2963,6 +3328,10 @@
         toadLast = now;
         const rnd = (a, b) => a + Math.random() * (b - a);
         const rm = sky.toadRM, dur = sky.toadClip.duration, S = sky.toadScale;
+        if (now > grassPick) {
+          grassPick = now + 500; // раз в 0.5 с — какие 16 животных раздвигают траву
+          updateGrassInteractors();
+        }
         for (const t of sky.toads) {
           t.obj.visible = !sky.isWater;
           if (!t.obj.visible) continue;
@@ -3048,7 +3417,7 @@
 
       // стадо (boids): общая цель вида впереди по ходу + тяга к центру группы + выравнивание курса +
       // мягкое расталкивание вплотную; направление сглаживается, поворот на ходу, без разворотов на месте
-      const HEADING_FIX = { bison: 0, rhino: 0 }; // поправка, если вид идёт задом (Math.PI)
+      const HEADING_FIX = {}; // поправка курса по виду, если модель идёт задом (Math.PI); у всех текущих — 0
       const HERD_RMIN = 9, HERD_RMAX = 42;
       const TURN_RATE = 0.3; // рад/с — не быстрее
       const DIR_TAU = 2.0; // с — сглаживание желаемого направления
@@ -3128,17 +3497,26 @@
           h.dir.lerp(want, 1 - Math.exp(-dt / DIR_TAU)).normalize();
           const wantAng = Math.atan2(h.dir.x, h.dir.y);
           let dAng = ((wantAng - h.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-          dAng = Math.max(-TURN_RATE * dt, Math.min(TURN_RATE * dt, dAng));
+          const turnRate = sp.turnRate || TURN_RATE;
+          dAng = Math.max(-turnRate * dt, Math.min(turnRate * dt, dAng));
           h.heading += dAng;
           // темп: отставший чуть быстрее, вырвавшийся вперёд — медленнее; на повороте — немного медленнее
           const ahead = h.pos.clone().sub(g.c).dot(g.d);
           let k = 1 - Math.max(-0.15, Math.min(0.25, ahead / (sp.spacing * 3)));
-          k *= 0.85 + 0.15 * Math.cos(Math.min(Math.abs(dAng / Math.max(dt, 1e-3)) / TURN_RATE, 1) * (Math.PI / 2));
-          const v = h.speed * k;
+          k *= 0.85 + 0.15 * Math.cos(Math.min(Math.abs(dAng / Math.max(dt, 1e-3)) / turnRate, 1) * (Math.PI / 2));
+          // слон трубит — стоит на месте, пока идёт анимация; затем снова шагает
+          const stopped = now < h.stopUntil;
+          if (h.trumpeting && !stopped) {
+            h.trumpeting = false;
+            h.trumpet.fadeOut(0.4);
+            h.action.reset().fadeIn(0.4).play();
+          }
+          const v = stopped ? 0 : h.speed * k;
+          if (stopped) h.heading -= dAng; // на месте не поворачивается
           h.pos.x += Math.sin(h.heading) * v * dt;
           h.pos.y += Math.cos(h.heading) * v * dt;
 
-          h.obj.rotation.y = h.heading + HEADING_FIX[sp.key];
+          h.obj.rotation.y = h.heading + (HEADING_FIX[sp.key] || 0);
           h.action.timeScale = sp.animScale * k; // темп шага строго по скорости — стопы не скользят
           h.mixer.update(dt);
         }
@@ -3181,7 +3559,10 @@
         {
           // бледно-жёлтый диск (отличается от белого неба); у горизонта желтеет и краснеет; под облаками тускнеет
           const low = Math.min(Math.max(sH.altitude / 15, 0), 1);
-          sky.sun.material.color.setRGB(1.0, 0.62 + 0.38 * low, 0.3 + 0.7 * low); // у горизонта — оранжевее
+          // Солнце — самое яркое на небе: яркость ×4 в HDR (после тонмаппинга центр белый, край чуть теплее, но ярче неба);
+          // у горизонта — желтее и краснее
+          const SUN_HDR = 8.0; // пересвечен, как в реальности: и край диска уходит в белое, без обводки
+          sky.sun.material.color.setRGB(SUN_HDR, SUN_HDR * (0.62 + 0.38 * low), SUN_HDR * (0.3 + 0.7 * low));
           const vis = sH.altitude > -1.5 ? Math.max(0.25, 1 - 0.75 * (sky.cloud ? sky.cloud.cloud_cover / 100 : 0)) : 0;
           sky.sun.material.opacity = vis;
           sky.sunHalo.material.opacity = vis;
@@ -3257,7 +3638,8 @@
         updateFish();
         updateHerd();
         updateToads();
-        updateTorch(sky.nightU.value);
+        updateTorch(sH.altitude);
+        updateBats(sH.altitude);
         soundUpdate(day, sky.nightU.value);
 
         // облачность Open-Meteo по ярусам:
@@ -3415,7 +3797,20 @@
         const initPromise = track(renderer.init(), "WebGPU");
         await loadEarthAssets(); // параллельно с init
         await loadMoonTex(); // текстура Луны
-        await initPromise;
+        // если видеокарта не отвечает 15 с (часто — её заняли другие вкладки с 3D), показываем, что делать
+        const gpuTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error("gpu-timeout")), 15000));
+        try {
+          await Promise.race([initPromise, gpuTimeout]);
+        } catch (e) {
+          if (e.message !== "gpu-timeout") throw e;
+          loaderError("The graphics device is not responding.\nClose other tabs with 3D content (or restart the browser) and try again.");
+          const btn = document.createElement("button");
+          btn.textContent = "Try again";
+          btn.className = "barBtn";
+          btn.onclick = () => location.reload();
+          loaderEl.appendChild(btn);
+          return;
+        }
         // Как в WebGL-оригинале Солнца: без тонмаппинга и без цветового преобразования кадра.
         // Земля/Луна/звёзды/фон получают ACES + sRGB в своих материалах (displayOut).
         renderer.toneMapping = THREE.NoToneMapping;
@@ -3661,6 +4056,41 @@
         });
 
         loaderDone();
+        renderer.inspector.hide(); // панель инспектора (Parameters, Earth, Animals) по умолчанию свёрнута; разворачивается кнопкой
+        // полный экран основного вида — кнопка ⛶ в правом нижнем ряду (Esc — выход)
+        document.getElementById("mainFull").addEventListener("click", () => {
+          const fs = document.fullscreenElement || document.webkitFullscreenElement;
+          if (fs) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          else {
+            const el = document.documentElement;
+            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+          }
+        });
+        // когда браузер свободен — заранее скачиваем в кеш модели и данные окна неба: к клику по Земле они уже есть
+        const prefetchSky = () => {
+          const urls = [
+            ...Object.values(SOUND_FILES),
+            "assets/japanese_toad.glb",
+            "assets/rhino_animation_walk.glb",
+            "assets/atlantic_mackerel_animated_and_game-ready.glb",
+            "assets/elephant.glb",
+            "assets/rhino_running.glb",
+            "assets/bat.glb",
+            "textures/sky/stars.6.json",
+            "textures/sky/constellations.lines.json",
+            "textures/sky/constellations.bounds.json",
+            "textures/sky/constellations.json",
+            "textures/waternormals.jpg",
+          ];
+          Promise.all(urls.map((u) => fetch(u, { priority: "low" }).then((r) => r.arrayBuffer())))
+            .then(() => {
+              sky.prefetched = true; // всё в кеше: окно откроется без шторки
+              console.log("[diag] файлы окна неба предзагружены:", urls.length);
+            })
+            .catch((e) => console.warn("[diag] предзагрузка окна неба:", e));
+        };
+        if ("requestIdleCallback" in window) requestIdleCallback(prefetchSky, { timeout: 5000 });
+        else setTimeout(prefetchSky, 3000);
         console.log(
           "[diag] orbitR:",
           orbitR,
