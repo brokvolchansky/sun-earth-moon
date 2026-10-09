@@ -371,6 +371,12 @@
         font: 13px/1.5 system-ui, sans-serif;
         box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
       }
+      /* окно — колонка: заголовок сверху, прокручивается только список (у самого окна прокрутки нет) */
+      #creditsDlg[open] {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
       #creditsDlg::backdrop {
         background: rgba(0, 0, 0, 0.5);
       }
@@ -392,7 +398,27 @@
       #creditsDlg .body {
         padding: 6px 18px 16px;
         overflow-y: auto;
-        max-height: calc(min(80vh, 760px) - 52px);
+        flex: 1;
+        min-height: 0;
+      }
+      /* полосы прокрутки — тонкие, в цвет оформления (Firefox/Chromium — scrollbar-*, Safari — ::-webkit-scrollbar) */
+      #creditsDlg .body,
+      #constInfo {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(140, 160, 210, 0.45) transparent;
+      }
+      #creditsDlg .body::-webkit-scrollbar,
+      #constInfo::-webkit-scrollbar {
+        width: 8px;
+      }
+      #creditsDlg .body::-webkit-scrollbar-track,
+      #constInfo::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #creditsDlg .body::-webkit-scrollbar-thumb,
+      #constInfo::-webkit-scrollbar-thumb {
+        background: rgba(140, 160, 210, 0.45);
+        border-radius: 4px;
       }
       #creditsDlg h3 {
         margin: 14px 0 4px;
@@ -544,6 +570,9 @@
       import { SkyMesh } from "three/addons/objects/SkyMesh.js";
       import { WaterMesh } from "three/addons/objects/WaterMesh.js";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+      // модели перепакованы gltf-transform (EXT_meshopt_compression, EXT_texture_webp) — загрузчику нужен декодер
+      const gltfLoader = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
       import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
       import { LineSegments2 } from "three/addons/lines/webgpu/LineSegments2.js";
       import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
@@ -837,7 +866,7 @@
       }
       let earthDayTex = null, earthSpecTex = null, earthNormalTex = null, cityData = null;
       async function loadEarthAssets() {
-        const opt = (p) => p.catch((e) => (console.warn("[diag] не загрузилось:", e), null));
+        const opt = (p) => p.catch((e) => (console.warn("не загрузилось:", e), null));
         const [day, spec, nrm, cities] = await Promise.all([
           opt(track(loadTexturePromise("textures/earth_day_4k.jpg"), "Earth surface")),
           opt(track(loadTexturePromise("textures/earth_specular_4k.jpg"), "Water and land")),
@@ -864,16 +893,14 @@
             cityData[i * 3 + 2] = pp[i];
           }
         } else cityData = null;
-        console.log("[diag] текстуры Земли:", !!day, !!spec, !!nrm, "| поселений:", cityData ? cityData.length / 3 : 0);
       }
 
       // --- Текстура Луны (luna_2k.jpg) ---
       async function loadMoonTex() {
         try {
           moonTex = await track(loadTexturePromise("luna_2k.jpg"), "Moon");
-          console.log("[diag] текстура Луны: luna_2k.jpg");
         } catch (e) {
-          console.warn("[diag] текстура Луны не найдена — Луна остаётся серой");
+          console.warn("текстура Луны не найдена — Луна остаётся серой");
         }
       }
 
@@ -1590,7 +1617,6 @@
         mesh.frustumCulled = false;
         mesh.renderOrder = 3;
         globe.add(mesh);
-        console.log("[diag] огни поселений:", n);
       }
 
       // --- Живая карта облаков (CORS разрешён сервисом) ---
@@ -1604,7 +1630,6 @@
         for (const node of cloudTexNodes) node.value = tex;
         cloudsMesh.visible = true;
         cloudsLoadedAt = new Date();
-        console.log("[diag] облака загружены, снимок:", version);
       }
       async function checkClouds() {
         try {
@@ -1616,7 +1641,7 @@
             cloudsVersion = version;
           }
         } catch (e) {
-          console.warn("[diag] проверка облаков не удалась:", e);
+          console.warn("проверка облаков не удалась:", e);
         }
       }
 
@@ -1788,7 +1813,7 @@
 
       async function initSky() {
         const r = new THREE.WebGPURenderer({ canvas: skyEl.canvas, antialias: true });
-        r.setPixelRatio(devicePixelRatio);
+        r.setPixelRatio(Math.min(devicePixelRatio, QUALITY_TIERS[QUALITY.tier].dpr));
         const w = skyEl.canvas.clientWidth, h = skyEl.canvas.clientHeight;
         r.setSize(w, h, false);
         await r.init();
@@ -1837,6 +1862,7 @@
             base: uniform(1500),
             top: uniform(4200),
             coverage: uniform(0.0), // 0..1 — из Open-Meteo
+            steps: uniform(QUALITY_TIERS[QUALITY.tier].clouds), // шаги луча (ступени качества: 26 / 20 / 16 / 12)
             absorb: uniform(0.0045), // коэффициент ослабления, 1/м
             sunDir: uniform(new THREE.Vector3(0, 1, 0)),
             sunCol: uniform(new THREE.Color(1, 0.97, 0.92)),
@@ -1866,18 +1892,17 @@
             const rd = normalize(positionWorld.sub(cameraPosition));
             const res = vec4(0.0).toVar();
             If(rd.y.greaterThan(0.015), () => {
-              const STEPS = 26;
               const t0 = cu.base.div(rd.y);
               const t1 = min(cu.top.div(rd.y), t0.add(16000.0));
-              const dt = t1.sub(t0).div(STEPS);
+              const dt = t1.sub(t0).div(cu.steps);
               // сдвиг начала по экрану — против полос
               const jit = fract(sin(dot(screenUV, vec2(12.9898, 78.233))).mul(43758.5453));
               const t = t0.add(dt.mul(jit)).toVar();
               const cosT = dot(rd, cu.sunDir);
               const phase = hg(cosT, 0.6).mul(0.7).add(hg(cosT, -0.3).mul(0.3)).mul(4 * Math.PI); // ≈1 для изотропного
               const ls = cu.top.sub(cu.base).div(6.0); // шаг вторичного марша к Солнцу
-              Loop(STEPS, () => {
-                If(res.a.greaterThan(0.985), () => {
+              Loop(26, ({ i }) => {
+                If(float(i).greaterThanEqual(cu.steps).or(res.a.greaterThan(0.985)), () => {
                   Break();
                 });
                 const pp = rd.mul(t);
@@ -2019,7 +2044,7 @@
           terrain: () => -2,
           preset: "perennialRyegrass",
           bladeHeight: 0.45,
-          density: grassPresets.perennialRyegrass.density * 3.5, // гуще
+          density: (sky.grassBase = { density: grassPresets.perennialRyegrass.density * 3.5 }).density * QUALITY_TIERS[QUALITY.tier].grass, // гуще
           // вдали прореживание слабее, чем по умолчанию (8 м — 100%, 25 м — 60%, 60 м — 25%, 120 м — 10%)
           lods: [
             { distance: 8, density: 1, segments: 5 },
@@ -2042,7 +2067,7 @@
         // --- рыбка: «Atlantic Mackerel (Animated and Game-ready)», 1shxxn, Sketchfab, CC BY 4.0;
         // скелет 25 костей, анимации Swimming / Idle / Death
         const fishTask = skyTaskStart("Fish");
-        new GLTFLoader().load("assets/atlantic_mackerel_animated_and_game-ready.glb", (gltf) => {
+        gltfLoader().load("assets/atlantic_mackerel_animated_and_game-ready.glb", (gltf) => {
           fishTask();
           const model = gltf.scene;
           const box = new THREE.Box3().setFromObject(model);
@@ -2064,7 +2089,6 @@
           swim.timeScale = 2.2; // в прыжке рыба бьёт хвостом чаще
           swim.play();
           sky.fish = { obj: fish, inner, mixer, last: performance.now(), t0: -1, next: performance.now() + 3000 };
-          console.log("[diag] рыбка загружена, размер модели:", size.toArray().map((v) => +v.toFixed(3)));
         });
 
         // --- стадо: бизоны и носороги постоянно бродят вокруг, обходят друг друга и наблюдателя ---
@@ -2086,7 +2110,7 @@
         ];
         const loadSpecies = (sp) =>
           new Promise((resolve) => {
-            new GLTFLoader().load(sp.url, async (gltf) => {
+            gltfLoader().load(sp.url, async (gltf) => {
               if (sp.specGloss) {
                 // материал в устаревшем KHR_materials_pbrSpecularGlossiness (three.js его не читает):
                 // берём текстуру окраски вручную, шерсть — матовая
@@ -2165,7 +2189,6 @@
               });
               proxy.userData.ref = sky.herd[sky.herd.length - 1];
             }
-            console.log("[diag] стадо:", sp.key, "x" + sp.count, "размер модели", size.toArray().map((v) => +v.toFixed(2)), "анимация", walkClip.name, walkClip.duration.toFixed(2) + " с");
           }
           updateGrassInteractors();
         })();
@@ -2174,7 +2197,7 @@
         // перенесены на скелет клоуна. Танцует по кругу; по нажатию — плавный переход в смех со звуком, затем снова танец
         sky.clown = null;
         const clownTask = skyTaskStart("Clown");
-        new GLTFLoader().load("assets/clown.glb", (gltf) => {
+        gltfLoader().load("assets/clown.glb", (gltf) => {
           const model = gltf.scene;
           // в GLB все материалы клоуна двусторонние: изнанка внутреннего слоя костюма (модификатор толщины) освещалась
           // через складки — «свечение изнутри». Рисуем только лицевую сторону; полость рта — двусторонняя (видна изнутри)
@@ -2286,7 +2309,7 @@
         // Три мыши летают по восьмёркам (лемниската Бернулли) у наблюдателя; в сумерках и ночью
         sky.bats = [];
         const batTask = skyTaskStart("Bats");
-        new GLTFLoader().load("assets/bat.glb", (gltf) => {
+        gltfLoader().load("assets/bat.glb", (gltf) => {
           const clip = gltf.animations[0];
           const rnd = (a, b) => a + Math.random() * (b - a);
           for (let i = 0; i < 3; i++) {
@@ -2323,7 +2346,7 @@
         // Жабы сидят у наблюдателя неподвижно, каждая в своём ритме; носороги их обходят.
         sky.toads = [];
         const toadTask = skyTaskStart("Toads");
-        new GLTFLoader().load("assets/japanese_toad.glb", (gltf) => {
+        gltfLoader().load("assets/japanese_toad.glb", (gltf) => {
           const TOAD_COUNT = 14; // 14 жаб + 2 носорога = 16 — предел библиотеки травы на раздвигание
           const TOAD_SCALE = 2.0; // ×2 к настоящим ~21 см, иначе не разглядеть
           const clip = gltf.animations[0];
@@ -2370,7 +2393,6 @@
             n++;
           }
           updateGrassInteractors();
-          console.log("[diag] жабы:", sky.toads.length, "анимация", clip.name, clip.duration.toFixed(2) + " с");
           toadTask();
         });
 
@@ -2417,7 +2439,7 @@
             });
             sky.constLines = new Map(lines.features.map((f) => [f.id, f.geometry.coordinates]));
           })
-          .catch((e) => console.warn("[diag] границы созвездий не загрузились:", e));
+          .catch((e) => console.warn("границы созвездий не загрузились:", e));
 
         // Солнце: чёткий диск с потемнением к краю (рисуется непрозрачно, не «выгорает») + слабый ореол
         {
@@ -2926,7 +2948,7 @@
           }
           sky.lastWeather = performance.now();
         } catch (e) {
-          console.warn("[diag] Open-Meteo не ответил:", e);
+          console.warn("Open-Meteo не ответил:", e);
           sky.cloud = null;
         }
       }
@@ -3026,7 +3048,7 @@
               // сборке шейдеров — не больше 8 с (при занятой видеокарте она может затянуться)
               await sky.renderer.compileAsync(sky.scene, sky.camera); // до реального завершения сборки шейдеров
             } catch (e) {
-              console.warn("[diag] compileAsync:", e);
+              console.warn("compileAsync:", e);
             }
             await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
             skyLoadDone("Scene");
@@ -3047,7 +3069,7 @@
         (placesPromise ||= fetch("textures/sky/places15000.json")
           .then((r) => r.json())
           .then((a) => (PLACES = a))
-          .catch((e) => (console.warn("[diag] названия мест не загрузились:", e), null)));
+          .catch((e) => (console.warn("названия мест не загрузились:", e), null)));
       function nearestPlace(lat, lon) {
         if (!PLACES) return null;
         const la = lat * D2R, lo = lon * D2R, cla = Math.cos(la);
@@ -3137,7 +3159,7 @@
               try {
                 SND.buf[k] = await SND.ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
               } catch (e) {
-                console.warn("[diag] звук не загрузился:", url, e);
+                console.warn("звук не загрузился:", url, e);
               }
             }),
           ));
@@ -3337,7 +3359,7 @@
         const names = ["foot_L", "leg3_R001", "hand_L", "hand_R"]; // three.js убирает точки из имён: leg3_R.001 -> leg3_R001
         const bones = names.map((n) => sc.getObjectByName(n));
         if (bones.some((x) => !x)) {
-          console.warn("[diag] кости лап жабы не найдены — ползание без перемещения");
+          console.warn("кости лап жабы не найдены — ползание без перемещения");
           return null;
         }
         const FPS = 30, N = Math.floor(clip.duration * FPS);
@@ -3364,7 +3386,6 @@
           zs[k + 1] = zs[k] + (n ? sz / n : 0);
         }
         const total = Math.hypot(xs[N], zs[N]);
-        console.log("[diag] ползание жабы: перемещение за цикл", total.toFixed(3), "м (настоящий масштаб)");
         return { fps: FPS, n: N, xs, zs, total };
       }
       const rmAt = (rm, t) => {
@@ -3978,8 +3999,70 @@
         if (sky.open) fetchWeather(); // облачность в точке окна неба — Open-Meteo
       }
 
+      // ---- качество: 4 ступени; «Auto» понижает/повышает ступень по времени кадра (на мощных машинах остаётся High) ----
+      const QUALITY_TIERS = [
+        { name: "High", dpr: 2, clouds: 26, sun: 1.0, grass: 1.0 },
+        { name: "Medium", dpr: 1.5, clouds: 20, sun: 1.0, grass: 0.8 },
+        { name: "Low", dpr: 1.25, clouds: 16, sun: 0.6, grass: 0.6 },
+        { name: "Lowest", dpr: 1.0, clouds: 12, sun: 0.4, grass: 0.45 },
+      ];
+      const QUALITY = { mode: "Auto", tier: 0, applied: -1, sunLines: null, t0: Infinity, acc: 0, n: 0, hitch: false, good: 0 };
+      function applyQuality(force = false) {
+        const t = QUALITY_TIERS[QUALITY.tier];
+        if (!force && QUALITY.applied === QUALITY.tier) return;
+        QUALITY.applied = QUALITY.tier;
+        const dpr = Math.min(devicePixelRatio, t.dpr);
+        renderer.setPixelRatio(dpr);
+        if (sky.renderer) sky.renderer.setPixelRatio(dpr);
+        if (sky.cloudU) sky.cloudU.steps.value = t.clouds;
+        // волокна короны и протуберанцев Солнца — рисуется доля линий
+        if (!QUALITY.sunLines) {
+          QUALITY.sunLines = [];
+          scene.traverse((o) => o.isMesh && o.geometry.index && o.geometry.index.count > 200000 && QUALITY.sunLines.push(o));
+        }
+        for (const m of QUALITY.sunLines) m.geometry.setDrawRange(0, Math.floor((m.geometry.index.count * t.sun) / 6) * 6);
+        // трава: плотность и дальность (библиотека пересобирает участки)
+        if (sky.grassField && sky.grassBase) sky.grassField.set({ density: sky.grassBase.density * t.grass, maxDistance: 38 + 22 * ((t.grass - 0.45) / 0.55) });
+      }
+      function setQualityMode(mode) {
+        QUALITY.mode = mode;
+        if (mode !== "Auto") QUALITY.tier = QUALITY_TIERS.findIndex((t) => t.name === mode);
+        QUALITY.acc = QUALITY.n = QUALITY.good = 0;
+        QUALITY.t0 = performance.now();
+        applyQuality(true);
+      }
+      // замер раз в 2 с: >24 мс в среднем — ступень вниз; 3 замера подряд <13 мс — ступень вверх; окна с рывками (>250 мс) не учитываются
+      function sampleQuality(frameMs) {
+        if (QUALITY.mode !== "Auto") return;
+        const now = performance.now();
+        if (now < QUALITY.t0) return;
+        if (frameMs > 250) QUALITY.hitch = true;
+        QUALITY.acc += frameMs;
+        QUALITY.n++;
+        if (now - QUALITY.t0 < 2000) return;
+        const avg = QUALITY.acc / QUALITY.n, hitch = QUALITY.hitch;
+        QUALITY.t0 = now;
+        QUALITY.acc = QUALITY.n = 0;
+        QUALITY.hitch = false;
+        if (hitch) return;
+        if (avg > 24 && QUALITY.tier < QUALITY_TIERS.length - 1) {
+          QUALITY.tier++;
+          QUALITY.good = 0;
+          applyQuality();
+        } else if (avg < 13 && QUALITY.tier > 0) {
+          if (++QUALITY.good >= 3) {
+            QUALITY.tier--;
+            QUALITY.good = 0;
+            applyQuality();
+          }
+        } else QUALITY.good = 0;
+      }
+
+      let prevRaw = 0;
       function loop(now) {
         requestAnimationFrame(loop);
+        if (prevRaw) sampleQuality(now - prevRaw);
+        prevRaw = now;
         const dt = Math.min((now - prev) / 1000, 0.05);
         prev = now;
         // расстояние Земли до Солнца (слайдер) -> пересчёт орбиты
@@ -4009,7 +4092,8 @@
           follow.prev.copy(_fp);
         }
         controls.update();
-        renderFrame();
+        // окно места развёрнуто на весь экран — основную сцену под ним не видно: не рисуем
+        if (!(sky.open && skyEl.panel.classList.contains("max"))) renderFrame();
       }
 
       async function main() {
@@ -4067,7 +4151,10 @@
         setInterval(observe, OBSERVE_MS);
         // при возврате во вкладку — проверка сразу
         document.addEventListener("visibilitychange", () => {
-          if (document.visibilityState === "visible") observe();
+          if (document.visibilityState === "visible") {
+            observe();
+            if (SND.on && sky.open) SND.ctx?.resume();
+          } else SND.ctx?.suspend(); // фоновая вкладка — без звука (рендеринг браузер останавливает сам)
         });
 
         // Зум (скролл) + поворот сцены (OrbitControls)
@@ -4103,6 +4190,8 @@
           }
         }
         gui.add(PARAMS, "realScale").name("Show REAL scale").onChange(applyBodyScale);
+        PARAMS.quality = "Auto";
+        gui.add(PARAMS, "quality", ["Auto", "High", "Medium", "Low", "Lowest"]).name("quality").onChange((v) => setQualityMode(v));
         // время сцены -> текущее реальное, скорость ×1 (при клике по Земле и «Где я»)
         const syncNow = () => {
           simTime = Date.now();
@@ -4296,6 +4385,8 @@
 
         loaderDone();
         renderer.inspector.hide(); // панель инспектора (Parameters, Earth, Animals) по умолчанию свёрнута; разворачивается кнопкой
+        applyQuality(true);
+        QUALITY.t0 = performance.now() + 4000; // первый замер качества — через 4 с после загрузки
         // полный экран основного вида — кнопка ⛶ в правом нижнем ряду (Esc — выход)
         document.getElementById("mainFull").addEventListener("click", () => {
           const fs = document.fullscreenElement || document.webkitFullscreenElement;
@@ -4326,20 +4417,11 @@
           Promise.all(urls.map((u) => fetch(u, { priority: "low" }).then((r) => r.arrayBuffer())))
             .then(() => {
               sky.prefetched = true; // всё в кеше: окно откроется без шторки
-              console.log("[diag] файлы окна неба предзагружены:", urls.length);
             })
-            .catch((e) => console.warn("[diag] предзагрузка окна неба:", e));
+            .catch((e) => console.warn("предзагрузка окна неба:", e));
         };
         if ("requestIdleCallback" in window) requestIdleCallback(prefetchSky, { timeout: 5000 });
         else setTimeout(prefetchSky, 3000);
-        console.log(
-          "[diag] orbitR:",
-          orbitR,
-          "| globeR:",
-          globeR,
-          "| sunR:",
-          globeR * SUN_FRAC,
-        );
       }
 
       main().catch((e) => {
