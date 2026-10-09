@@ -1,6 +1,6 @@
 # Living Sun · Earth · Moon
 
-> A free, real-time 3D scene in the browser (WebGPU): the living Sun, the Earth and the Moon in their true positions for the current moment, and a "sky window" that shows the real sky above any place on Earth you click — with live clouds, local weather, stars and constellations, ambient sounds and animals.
+> A playful toy, not a scientific tool. It is built on real data — the Sun, Earth and Moon in their true positions for the current moment, live satellite clouds and local weather — and mixes it with pure fun: click any place on Earth to open a sky window with stars, sounds, rhinos, elephants, toads, bats and a dancing, laughing clown.
 
 Site: https://sun-earth-moon-webgpu.pages.dev/
 
