@@ -1,0 +1,5 @@
+# All crawlers, including AI search and AI training crawlers, are welcome.
+User-agent: *
+Allow: /
+
+Sitemap: https://sun-earth-moon-webgpu.pages.dev/sitemap.xml

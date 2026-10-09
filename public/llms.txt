@@ -1,0 +1,31 @@
+# Living Sun · Earth · Moon
+
+> A free, real-time 3D scene in the browser (WebGPU): the living Sun, the Earth and the Moon in their true positions for the current moment, and a "sky window" that shows the real sky above any place on Earth you click — with live clouds, local weather, stars and constellations, ambient sounds and animals.
+
+Site: https://sun-earth-moon-webgpu.pages.dev/
+
+## What it shows
+
+- The Sun with an animated surface, corona and prominences; the Earth with day/night, city lights and live satellite clouds; the Moon with real phase.
+- Positions of the Sun, Moon and Earth are computed for the current date and time (Astronomy Engine).
+- Clicking a point on Earth opens the sky above it right now: the Sun and Moon at their real altitude and azimuth, stars and the 88 IAU constellations, cloud cover by layer and wind from Open-Meteo, and the nearest town (GeoNames).
+- On land: grass, rhinos, elephants, toads, bats at dusk and a dancing clown; over water: waves and a jumping mackerel. Animals react to clicks with sounds.
+
+## How to use
+
+- Drag to rotate, scroll to zoom, double-click the Sun, Earth or Moon to fly to it.
+- Click the Earth to open the sky window; drag inside it to look around, scroll to zoom; buttons for Sun, Moon, sound, flashlight and full screen.
+- Parameters panel: time speed, Earth–Sun distance, real scale, "Now", "Where am I", rendering quality (Auto / High / Medium / Low / Lowest).
+
+## Requirements
+
+- A browser with WebGPU support (recent Chrome, Edge, Arc, Safari 26+). A capable GPU gives the best result; quality adapts automatically on weaker systems.
+
+## Data and privacy
+
+- No accounts, no cookies. Anonymous page-view statistics are counted by Cloudflare Web Analytics.
+- The visitor's position stays in the browser; only the coordinates of a selected point are sent to Open-Meteo for weather; clicking a constellation requests its description from Wikipedia.
+
+## Credits
+
+- Full list of models, sounds, textures, data sources and libraries with licenses is in the "Credits" dialog on the page.
