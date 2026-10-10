@@ -15,7 +15,8 @@ Site: https://sun-earth-moon-webgpu.pages.dev/
 
 - Drag to rotate, scroll to zoom, double-click the Sun, Earth or Moon to fly to it.
 - Click the Earth to open the sky window; drag inside it to look around, scroll to zoom; buttons for Sun, Moon, sound, flashlight and full screen.
-- Parameters panel: time speed, Earth–Sun distance, real scale, "Now", "Where am I", rendering quality (Auto / High / Medium / Low / Lowest).
+- "📍 Where am I" button (bottom right): opens the sky above your location.
+- Parameters panel: time speed, Earth–Sun distance, real scale, "Now", rendering quality (Auto / High / Medium / Low / Lowest).
 
 ## Requirements
 
