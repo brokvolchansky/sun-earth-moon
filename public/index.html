@@ -127,7 +127,6 @@
         z-index: 2147483100;
         width: min(360px, calc(100vw - 24px));
         max-height: min(70vh, 560px);
-        /* колонка: заголовок неподвижен, прокручивается только содержимое (.body) */
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -175,7 +174,6 @@
         line-height: 1;
         cursor: pointer;
       }
-      /* атрибут hidden прячет элемент всегда — даже если в его стилях задан display (flex и т. п.) */
       [hidden] {
         display: none !important;
       }
@@ -187,7 +185,7 @@
         width: 100% !important;
         border-radius: 0;
         border: none;
-        z-index: 2147483000; /* выше всего, включая панель параметров — иначе она закрывает кнопки заголовка */
+        z-index: 2147483000;
       }
       #skyCanvasWrap {
         position: relative;
@@ -262,7 +260,7 @@
       #skyPanel {
         position: fixed;
         right: 12px;
-        bottom: 40px; /* над кнопками Sun / Earth / Moon */
+        bottom: 40px;
         width: 600px;
         background: #05070c;
         border: 1px solid #2a3550;
@@ -296,7 +294,7 @@
       }
       #skyTitle {
         flex: 1 1 auto;
-        min-width: 0; /* длинный заголовок переносится сам, кнопки не сжимает */
+        min-width: 0;
       }
       #skyBtns {
         display: flex;
@@ -312,7 +310,6 @@
         font: 18px monospace;
         cursor: pointer;
       }
-      /* блок основной сцены: в полный экран уходит он, а не сам холст (холст рисует рабочий поток) */
       #mainView {
         position: fixed;
         inset: 0;
@@ -323,7 +320,7 @@
         top: 8px;
         right: 8px;
         width: 256px;
-        z-index: 2147482000; /* ниже развёрнутого окна места (2147483000) — иначе панель закрывает его кнопки (✕, ⛶) */
+        z-index: 2147482000;
       }
       #mainCanvas {
         position: absolute;
@@ -338,9 +335,8 @@
         height: 360px;
         display: block;
         cursor: grab;
-        touch-action: none; /* пальцем — обзор и щипок, без прокрутки и масштаба страницы */
+        touch-action: none;
       }
-      /* узкий экран (телефон): подсказку убираем, окно неба — по ширине экрана (задаётся из кода) */
       @media (max-width: 640px) {
         #legend {
           display: none;
@@ -415,7 +411,6 @@
         font: 13px/1.5 system-ui, sans-serif;
         box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
       }
-      /* окно — колонка: заголовок сверху, прокручивается только список (у самого окна прокрутки нет) */
       #creditsDlg[open] {
         display: flex;
         flex-direction: column;
@@ -445,7 +440,6 @@
         flex: 1;
         min-height: 0;
       }
-      /* полосы прокрутки — тонкие, в цвет оформления (Firefox/Chromium — scrollbar-*, Safari — ::-webkit-scrollbar) */
       #creditsDlg .body,
       #constInfo .body {
         flex: 1;
@@ -504,7 +498,6 @@
     </style>
   </head>
   <body>
-    <!-- всё приложение внутри #mainView: в полном экране основного вида видны и сцена, и всё управление -->
     <div id="mainView">
     <canvas id="mainCanvas"></canvas>
     <div id="loader">
@@ -550,6 +543,10 @@
     <dialog id="creditsDlg" aria-labelledby="creditsTitle">
       <header><h2 id="creditsTitle">Credits &amp; licenses</h2><button id="creditsClose" type="button" aria-label="Close">×</button></header>
       <div class="body">
+        <h3>Author</h3>
+        <ul>
+          <li>Made by Anton Brok-Volchansky · <a href="https://www.linkedin.com/in/brok-volchansky/" target="_blank" rel="noopener">LinkedIn</a></li>
+        </ul>
         <h3>Inspiration &amp; foundations</h3>
         <ul>
           <li>Sun — shaders ported to TSL from the <a href="https://fwdapps.net/l/sun/" target="_blank" rel="noopener">“Sun”</a> demo by <a href="https://webdesign-flash.ro/" target="_blank" rel="noopener">FWDesign</a> (Tibi)</li>
@@ -570,6 +567,7 @@
           <li>Earth (day, relief, water/land mask): <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a> <span class="lic">CC BY 4.0</span></li>
           <li>Moon: <a href="https://svs.gsfc.nasa.gov/4720" target="_blank" rel="noopener">CGI Moon Kit</a>, NASA's Scientific Visualization Studio</li>
           <li>Water ripples (normal map <code>waternormals.jpg</code>): <a href="https://github.com/mrdoob/three.js/tree/dev/examples/textures" target="_blank" rel="noopener">three.js examples</a> <span class="lic">MIT</span></li>
+          <li>Soil under the grass: <a href="https://polyhaven.com/a/sparse_grass" target="_blank" rel="noopener">“Sparse Grass”</a> by Amal Kumar, Poly Haven <span class="lic">CC0</span></li>
         </ul>
         <h3>3D models</h3>
         <ul>
