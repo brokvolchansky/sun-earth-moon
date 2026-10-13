@@ -2859,6 +2859,7 @@
         poseClimber(c, "climb", 0, true);
         for (const [j, deg] of Object.entries(HANG)) if (c.groups[j]) c.groups[j].rotation.z = -THREE.MathUtils.degToRad(deg);
       }
+      const _cw = new THREE.Vector3();
       let climberLast = performance.now();
       function updateClimber() {
         const c = sky.climber;
@@ -2891,7 +2892,7 @@
           else if (up) poseClimber(c, "summit", 0, true);
           else hangPose(c); // drops off the tip straight into the hang
           if (!up) c.glowU.on.value = Math.max(0, c.glowU.on.value - dt / HOP); // the halo goes out as he starts down
-          if (u >= 1) (c.state = up ? "summit" : "hang"), (c.t = 0);
+          if (u >= 1) (c.state = up ? "summit" : "hang"), (c.t = 0), (c.brrPlayed = false);
         } else if (c.state === "summit") {
           const t = Math.min(1, c.t / c.cd.summitDur);
           poseClimber(c, "summit", t, true);
@@ -2899,6 +2900,13 @@
           const ss = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
           c.glowU.on.value = ss(0.22, 0.3, t);
           c.glowU.mix.value = ss(0.36, 0.42, t);
+          // shiver sound as he starts rubbing himself (40%): from his direction, but from 20 m away —
+          // at his real distance (~600 m) the panner's inverse rolloff would make it inaudible
+          if (t >= 0.4 && !c.brrPlayed) {
+            c.brrPlayed = true;
+            c.groups.root.getWorldPosition(_cw);
+            soundAt("brr", _cw.normalize().multiplyScalar(20), 1.6, 1);
+          }
           if (t >= 1) (c.state = "hopDown"), (c.t = 0);
         } else if (c.state === "descend") {
           c.glowU.on.value = 0;
@@ -3046,6 +3054,7 @@
         gull1: "assets/sounds/gull_1.mp3",
         gull2: "assets/sounds/gull_2.mp3",
         gull3: "assets/sounds/gull_3.mp3",
+        brr: "assets/sounds/brr.mp3",
         heron1: "assets/sounds/heron_1.mp3",
         heron2: "assets/sounds/heron_2.mp3",
       };
