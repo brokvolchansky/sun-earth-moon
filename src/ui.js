@@ -236,7 +236,29 @@ export function createUI(cmd) {
           loaderEl.appendChild(btn);
         }
         break;
+      case "deviceLost": {
+        console.error("GPU device lost:", m.reason, m.message);
+        let last = 0;
+        try {
+          last = +sessionStorage.getItem("gpuLostAt") || 0;
+        } catch {}
+        if (Date.now() - last < 60000) {
+          toast("The graphics device was lost again. Please reload the page.", "err");
+          break;
+        }
+        try {
+          sessionStorage.setItem("gpuLostAt", String(Date.now()));
+          if (m.place) sessionStorage.setItem("gpuLostPlace", JSON.stringify(m.place));
+        } catch {}
+        location.reload();
+        break;
+      }
       case "loaderDone":
+        try {
+          const place = sessionStorage.getItem("gpuLostPlace");
+          sessionStorage.removeItem("gpuLostPlace");
+          if (place) cmd("whereAmI", JSON.parse(place));
+        } catch {}
         loaderBar.style.width = "100%";
         loaderStep.textContent = "Ready";
         setTimeout(() => {

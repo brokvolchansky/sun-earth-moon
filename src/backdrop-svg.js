@@ -79,7 +79,7 @@ export async function loadClimber(url) {
     const fx = node.closest(".puffs") ? "puffs" : node.closest(".brr") ? "brr" : null;
     const key = (fx ? fx + "@" : "") + jointOf(node);
     const strokeOnly = fx === "brr";
-    if (!strokeOnly) for (const s of SVGLoader.createShapes(p)) add(key, new ShapeGeometry(s, 6));
+    if (!strokeOnly) for (const s of p.toShapes()) add(key, new ShapeGeometry(s, 6));
     const w = strokeOnly ? 2.5 : 2;
     const style = { strokeWidth: w, strokeLineJoin: "round", strokeLineCap: strokeOnly ? "round" : "butt", strokeMiterLimit: 4 };
     for (const sp of p.subPaths) {

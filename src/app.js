@@ -1220,8 +1220,20 @@
         return s;
       }
 
+      // a lost GPU device leaves both canvases black while the loop keeps running: tell the page (once) so it can reload
+      let deviceLostSent = false;
+      function watchDevice(r) {
+        r.onDeviceLost = (info) => {
+          r._onDeviceLost(info);
+          if (deviceLostSent) return;
+          deviceLostSent = true;
+          UI.send("deviceLost", { message: info.message, reason: info.reason, place: sky.open ? { lat: sky.lat, lon: sky.lon } : null });
+        };
+      }
+
       async function initSky() {
         const r = new THREE.WebGPURenderer({ canvas: HOST.canvases.sky, antialias: true });
+        watchDevice(r);
         r.setPixelRatio(Math.min(devicePixelRatio, QUALITY_TIERS[QUALITY.tier].dpr));
         const w = Math.max(1, skyIn.clientWidth > 1 ? skyIn.clientWidth : 600), h = Math.max(1, skyIn.clientHeight > 1 ? skyIn.clientHeight : 360);
         r.setSize(w, h, false);
@@ -4221,6 +4233,7 @@
         buildStatic();
 
         renderer = new THREE.WebGPURenderer({ antialias: true, reversedDepthBuffer: true, canvas: HOST.canvases.main });
+        watchDevice(renderer);
         renderer.setSize(innerWidth, innerHeight, false);
         renderer.setPixelRatio(devicePixelRatio);
         const initPromise = track(renderer.init(), "WebGPU");
