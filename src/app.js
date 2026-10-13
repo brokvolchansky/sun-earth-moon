@@ -2919,6 +2919,8 @@
         c.t = 0;
         c.vy = 0;
         c.spin = (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 3);
+        c.groups.root.getWorldPosition(_cw);
+        soundAt("fall", _cw.normalize().multiplyScalar(20), 1.6, 1, true); // the scream dies away in its own echo
       }
       function poseClimber(c, anim, t, ease) {
         for (const [j, g] of Object.entries(c.groups)) {
@@ -3151,6 +3153,7 @@
         gull3: "assets/sounds/gull_3.mp3",
         brr: "assets/sounds/brr.mp3",
         curse: "assets/sounds/curse.mp3",
+        fall: "assets/sounds/fall.mp3", // «AAAAHH in the echo», Kuzu420, Pixabay Content License
         heron1: "assets/sounds/heron_1.mp3",
         heron2: "assets/sounds/heron_2.mp3",
       };
