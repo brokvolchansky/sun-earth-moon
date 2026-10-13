@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="climber" viewBox="0 0 200 240" width="200" height="240">
+<style>.climber{--climb-dur:1.4s;--summit-dur:9s;overflow:visible}
+.climber .fig{fill:var(--color,#ff7a00);stroke:var(--color,#ff7a00)}
+.climber .brr{fill:none}
+.climber .puffs,.climber .brr{opacity:0}
+.climber.no-fx .puffs,.climber.no-fx .brr{display:none}
+.j-body{transform:translateY(0px)}
+.j-th-l{transform-box:view-box;transform-origin:92px 140px;transform:rotate(4deg)}
+.j-sh-l{transform-box:view-box;transform-origin:92px 176px;transform:rotate(0deg)}
+.j-th-r{transform-box:view-box;transform-origin:108px 140px;transform:rotate(-75deg)}
+.j-sh-r{transform-box:view-box;transform-origin:108px 176px;transform:rotate(80deg)}
+.j-torso{transform-box:view-box;transform-origin:100px 140px;transform:rotate(-4deg)}
+.j-head{transform-box:view-box;transform-origin:100px 84px;transform:rotate(-6deg)}
+.j-ua-l{transform-box:view-box;transform-origin:84px 94px;transform:rotate(165deg)}
+.j-fa-l{transform-box:view-box;transform-origin:84px 121px;transform:rotate(15deg)}
+.j-ua-r{transform-box:view-box;transform-origin:116px 94px;transform:rotate(-70deg)}
+.j-fa-r{transform-box:view-box;transform-origin:116px 121px;transform:rotate(-110deg)}
+@keyframes climb-body{0%{transform:translateY(0px)} 50%{transform:translateY(0px)} 100%{transform:translateY(0px)}}
+@keyframes climb-th-l{0%{transform:rotate(4deg)} 50%{transform:rotate(75deg)} 100%{transform:rotate(4deg)}}
+@keyframes climb-sh-l{0%{transform:rotate(0deg)} 50%{transform:rotate(-80deg)} 100%{transform:rotate(0deg)}}
+@keyframes climb-th-r{0%{transform:rotate(-75deg)} 50%{transform:rotate(-4deg)} 100%{transform:rotate(-75deg)}}
+@keyframes climb-sh-r{0%{transform:rotate(80deg)} 50%{transform:rotate(0deg)} 100%{transform:rotate(80deg)}}
+@keyframes climb-torso{0%{transform:rotate(-4deg)} 25%{transform:rotate(0deg)} 50%{transform:rotate(4deg)} 75%{transform:rotate(0deg)} 100%{transform:rotate(-4deg)}}
+@keyframes climb-head{0%{transform:rotate(-6deg)} 25%{transform:rotate(0deg)} 50%{transform:rotate(6deg)} 75%{transform:rotate(0deg)} 100%{transform:rotate(-6deg)}}
+@keyframes climb-ua-l{0%{transform:rotate(165deg)} 50%{transform:rotate(70deg)} 100%{transform:rotate(165deg)}}
+@keyframes climb-fa-l{0%{transform:rotate(15deg)} 50%{transform:rotate(110deg)} 100%{transform:rotate(15deg)}}
+@keyframes climb-ua-r{0%{transform:rotate(-70deg)} 50%{transform:rotate(-165deg)} 100%{transform:rotate(-70deg)}}
+@keyframes climb-fa-r{0%{transform:rotate(-110deg)} 50%{transform:rotate(-15deg)} 100%{transform:rotate(-110deg)}}
+@keyframes summit-body{0%{transform:translateY(0px)} 9%{transform:translateY(0px)} 28%{transform:translateY(68px)} 74%{transform:translateY(68px)} 82%{transform:translateY(0px)} 88%{transform:translateY(8px)} 94%{transform:translateY(0px)} 100%{transform:translateY(0px)}}
+@keyframes summit-th-l{0%{transform:rotate(4deg)} 9%{transform:rotate(2deg)} 28%{transform:rotate(95deg)} 74%{transform:rotate(95deg)} 82%{transform:rotate(2deg)} 88%{transform:rotate(30deg)} 94%{transform:rotate(4deg)} 100%{transform:rotate(4deg)}}
+@keyframes summit-sh-l{0%{transform:rotate(0deg)} 9%{transform:rotate(0deg)} 28%{transform:rotate(-175deg)} 74%{transform:rotate(-175deg)} 82%{transform:rotate(0deg)} 88%{transform:rotate(-40deg)} 94%{transform:rotate(0deg)} 100%{transform:rotate(0deg)}}
+@keyframes summit-th-r{0%{transform:rotate(-75deg)} 9%{transform:rotate(-2deg)} 28%{transform:rotate(-95deg)} 74%{transform:rotate(-95deg)} 82%{transform:rotate(-2deg)} 88%{transform:rotate(-30deg)} 94%{transform:rotate(-60deg)} 100%{transform:rotate(-75deg)}}
+@keyframes summit-sh-r{0%{transform:rotate(80deg)} 9%{transform:rotate(0deg)} 28%{transform:rotate(175deg)} 74%{transform:rotate(175deg)} 82%{transform:rotate(0deg)} 88%{transform:rotate(40deg)} 94%{transform:rotate(65deg)} 100%{transform:rotate(80deg)}}
+@keyframes summit-torso{0%{transform:rotate(-4deg)} 9%{transform:rotate(0deg)} 28%{transform:rotate(0deg)} 40%{transform:rotate(3deg)} 42.5%{transform:rotate(-3deg)} 45%{transform:rotate(3deg)} 47.5%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} 52.5%{transform:rotate(-3deg)} 55%{transform:rotate(3deg)} 57.5%{transform:rotate(-3deg)} 60%{transform:rotate(3deg)} 62.5%{transform:rotate(-3deg)} 65%{transform:rotate(3deg)} 67.5%{transform:rotate(-3deg)} 70%{transform:rotate(3deg)} 74%{transform:rotate(0deg)} 82%{transform:rotate(0deg)} 88%{transform:rotate(0deg)} 100%{transform:rotate(-4deg)}}
+@keyframes summit-head{0%{transform:rotate(-6deg)} 9%{transform:rotate(0deg)} 13%{transform:rotate(-10deg)} 17%{transform:rotate(10deg)} 21%{transform:rotate(0deg)} 28%{transform:rotate(0deg)} 34%{transform:rotate(-6deg)} 37%{transform:rotate(0deg)} 40%{transform:rotate(-5deg)} 42.5%{transform:rotate(5deg)} 45%{transform:rotate(-5deg)} 47.5%{transform:rotate(5deg)} 50%{transform:rotate(-5deg)} 52.5%{transform:rotate(5deg)} 55%{transform:rotate(-5deg)} 57.5%{transform:rotate(5deg)} 60%{transform:rotate(-5deg)} 62.5%{transform:rotate(5deg)} 65%{transform:rotate(-5deg)} 67.5%{transform:rotate(5deg)} 70%{transform:rotate(-5deg)} 74%{transform:rotate(0deg)} 82%{transform:rotate(0deg)} 88%{transform:rotate(0deg)} 100%{transform:rotate(-6deg)}}
+@keyframes summit-ua-l{0%{transform:rotate(165deg)} 9%{transform:rotate(10deg)} 28%{transform:rotate(40deg)} 40%{transform:rotate(26deg)} 42.5%{transform:rotate(14deg)} 45%{transform:rotate(26deg)} 47.5%{transform:rotate(14deg)} 50%{transform:rotate(26deg)} 52.5%{transform:rotate(14deg)} 55%{transform:rotate(26deg)} 57.5%{transform:rotate(14deg)} 60%{transform:rotate(26deg)} 62.5%{transform:rotate(14deg)} 65%{transform:rotate(26deg)} 67.5%{transform:rotate(14deg)} 70%{transform:rotate(26deg)} 74%{transform:rotate(40deg)} 82%{transform:rotate(10deg)} 88%{transform:rotate(150deg)} 100%{transform:rotate(165deg)}}
+@keyframes summit-fa-l{0%{transform:rotate(15deg)} 9%{transform:rotate(0deg)} 28%{transform:rotate(20deg)} 40%{transform:rotate(-116deg)} 42.5%{transform:rotate(-104deg)} 45%{transform:rotate(-116deg)} 47.5%{transform:rotate(-104deg)} 50%{transform:rotate(-116deg)} 52.5%{transform:rotate(-104deg)} 55%{transform:rotate(-116deg)} 57.5%{transform:rotate(-104deg)} 60%{transform:rotate(-116deg)} 62.5%{transform:rotate(-104deg)} 65%{transform:rotate(-116deg)} 67.5%{transform:rotate(-104deg)} 70%{transform:rotate(-116deg)} 74%{transform:rotate(20deg)} 82%{transform:rotate(0deg)} 88%{transform:rotate(10deg)} 100%{transform:rotate(15deg)}}
+@keyframes summit-ua-r{0%{transform:rotate(-70deg)} 9%{transform:rotate(-10deg)} 28%{transform:rotate(-40deg)} 40%{transform:rotate(-14deg)} 42.5%{transform:rotate(-26deg)} 45%{transform:rotate(-14deg)} 47.5%{transform:rotate(-26deg)} 50%{transform:rotate(-14deg)} 52.5%{transform:rotate(-26deg)} 55%{transform:rotate(-14deg)} 57.5%{transform:rotate(-26deg)} 60%{transform:rotate(-14deg)} 62.5%{transform:rotate(-26deg)} 65%{transform:rotate(-14deg)} 67.5%{transform:rotate(-26deg)} 70%{transform:rotate(-14deg)} 74%{transform:rotate(-40deg)} 82%{transform:rotate(-10deg)} 88%{transform:rotate(-150deg)} 100%{transform:rotate(-70deg)}}
+@keyframes summit-fa-r{0%{transform:rotate(-110deg)} 9%{transform:rotate(0deg)} 28%{transform:rotate(-20deg)} 40%{transform:rotate(104deg)} 42.5%{transform:rotate(116deg)} 45%{transform:rotate(104deg)} 47.5%{transform:rotate(116deg)} 50%{transform:rotate(104deg)} 52.5%{transform:rotate(116deg)} 55%{transform:rotate(104deg)} 57.5%{transform:rotate(116deg)} 60%{transform:rotate(104deg)} 62.5%{transform:rotate(116deg)} 65%{transform:rotate(104deg)} 67.5%{transform:rotate(116deg)} 70%{transform:rotate(104deg)} 74%{transform:rotate(-20deg)} 82%{transform:rotate(0deg)} 88%{transform:rotate(-10deg)} 100%{transform:rotate(-110deg)}}
+@keyframes summit-puffs{0%,38%{opacity:0;transform:translate(0,0)}44%,52%,60%,68%{opacity:1;transform:translate(0,0)}48%,56%,64%{opacity:.2;transform:translate(3px,-4px)}74%,100%{opacity:0}}
+@keyframes summit-brr{0%,39%{opacity:0}42%,70%{opacity:1}74%,100%{opacity:0}}
+.is-climbing .j-body{animation:climb-body var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-th-l{animation:climb-th-l var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-sh-l{animation:climb-sh-l var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-th-r{animation:climb-th-r var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-sh-r{animation:climb-sh-r var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-torso{animation:climb-torso var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-head{animation:climb-head var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-ua-l{animation:climb-ua-l var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-fa-l{animation:climb-fa-l var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-ua-r{animation:climb-ua-r var(--climb-dur) ease-in-out infinite}
+.is-climbing .j-fa-r{animation:climb-fa-r var(--climb-dur) ease-in-out infinite}
+.is-descending .j-body{animation:climb-body var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-th-l{animation:climb-th-l var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-sh-l{animation:climb-sh-l var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-th-r{animation:climb-th-r var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-sh-r{animation:climb-sh-r var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-torso{animation:climb-torso var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-head{animation:climb-head var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-ua-l{animation:climb-ua-l var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-fa-l{animation:climb-fa-l var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-ua-r{animation:climb-ua-r var(--climb-dur) ease-in-out infinite reverse}
+.is-descending .j-fa-r{animation:climb-fa-r var(--climb-dur) ease-in-out infinite reverse}
+.is-summit .j-body{animation:summit-body var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-th-l{animation:summit-th-l var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-sh-l{animation:summit-sh-l var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-th-r{animation:summit-th-r var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-sh-r{animation:summit-sh-r var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-torso{animation:summit-torso var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-head{animation:summit-head var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-ua-l{animation:summit-ua-l var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-fa-l{animation:summit-fa-l var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-ua-r{animation:summit-ua-r var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .j-fa-r{animation:summit-fa-r var(--summit-dur) ease-in-out 1 forwards}
+.is-summit .puffs{animation:summit-puffs var(--summit-dur) linear 1 forwards}
+.is-summit .brr{animation:summit-brr var(--summit-dur) linear 1 forwards}
+.is-paused .climber *,.climber.is-paused *{animation-play-state:paused}</style>
+<g class="fig" fill="#ff7a00" stroke="#ff7a00" stroke-width="2" stroke-linejoin="round">
+<g class="j-body">
+<g class="j-th-l"><rect x="84.5" y="134" width="15" height="46" rx="7.5"/><g class="j-sh-l"><rect x="85.5" y="172" width="13" height="40" rx="6.5"/><rect x="83" y="203" width="18" height="13" rx="5"/></g></g>
+<g class="j-th-r"><rect x="100.5" y="134" width="15" height="46" rx="7.5"/><g class="j-sh-r"><rect x="101.5" y="172" width="13" height="40" rx="6.5"/><rect x="99" y="203" width="18" height="13" rx="5"/></g></g>
+<g class="j-torso">
+  <g class="j-ua-l"><rect x="78" y="90" width="12" height="34" rx="6"/><g class="j-fa-l"><rect x="79" y="117" width="10" height="30" rx="5"/><circle cx="84" cy="150" r="7"/></g></g>
+  <g class="j-ua-r"><rect x="110" y="90" width="12" height="34" rx="6"/><g class="j-fa-r"><rect x="111" y="117" width="10" height="30" rx="5"/><circle cx="116" cy="150" r="7"/></g></g>
+  <rect x="84" y="86" width="32" height="60" rx="12"/>
+  <rect x="79" y="84" width="42" height="52" rx="9"/>
+  <rect x="81" y="76" width="38" height="12" rx="6"/>
+  <g class="j-head">
+    <circle cx="100" cy="68" r="14"/>
+    <path d="M83.5 66a16.5 16.5 0 0 1 33 0v3h-33z"/>
+    <g class="puffs"><circle cx="110" cy="44" r="2.5"/><circle cx="116" cy="36" r="3.5"/><circle cx="124" cy="28" r="4.5"/></g>
+  </g>
+  <path class="brr" d="M70 58q-5 5 0 10M64 54q-7 9 0 18M130 58q5 5 0 10M136 54q7 9 0 18" fill="none" stroke-width="2.5" stroke-linecap="round"/>
+</g>
+</g>
+</g>
+</svg>

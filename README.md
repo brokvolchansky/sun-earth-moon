@@ -12,8 +12,10 @@ Requires a browser with WebGPU (recent Chrome, Edge or Safari).
 
 ## Structure
 
-- `public/` — the site as published (static files, no build step).
-- `.github/workflows/deploy.yml` — deploys `public/` to Cloudflare Pages on every push to `master`.
+- `src/` — source code (page, render worker, UI, `index.html`).
+- `public/` — static files copied to the build as is (models, sounds, textures, icons).
+- `dist/` — build output (`npm run build`, tsdown); not committed.
+- `.github/workflows/deploy.yml` — builds and deploys `dist/` to Cloudflare Pages on every push to `master`.
 
 ## Licenses
 

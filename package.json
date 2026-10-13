@@ -1,0 +1,22 @@
+{
+  "name": "sun-earth-moon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Living Sun · Earth · Moon — WebGPU / TSL",
+  "scripts": {
+    "build": "RELEASE=1 tsdown",
+    "dev": "tsdown --watch"
+  },
+  "author": "Anton Brok-Volchansky",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "astronomy-engine": "2.1.19",
+    "three": "0.186.1",
+    "threejs-grass": "0.1.0",
+    "tweakpane": "4.0.5"
+  },
+  "devDependencies": {
+    "tsdown": "0.23.1"
+  }
+}

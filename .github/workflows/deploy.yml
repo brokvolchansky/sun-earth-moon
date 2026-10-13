@@ -1,4 +1,4 @@
-# Deploy public/ to Cloudflare Pages on every push to master.
+# Build (tsdown) and deploy dist/ to Cloudflare Pages on every push to master.
 # Based on Cloudflare's guide "Use Direct Upload with continuous integration".
 # Requires repository secrets CLOUDFLARE_TOKEN (Account → Cloudflare Pages → Edit) and CLOUDFLARE_ACCOUNT_ID.
 name: Deploy to Cloudflare Pages
@@ -18,6 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+
       # Creates the Pages project on the first run; on later runs it already exists and this step is skipped over.
       - name: Ensure Pages project exists
         continue-on-error: true
@@ -32,5 +43,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public --project-name=sun-earth-moon-webgpu --branch=master
+          command: pages deploy dist --project-name=sun-earth-moon-webgpu --branch=master
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
