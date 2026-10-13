@@ -2939,7 +2939,7 @@
         for (const im of sky.cattail.parts) im.instanceMatrix.needsUpdate = true;
         if (sky.heron) {
           // in the shallows of the near-left shore, in front of the thicket, turned along the shore
-          const phi = THREE.MathUtils.degToRad(122);
+          const phi = THREE.MathUtils.degToRad(108);
           const u = sky.lake.a * 0.8 * Math.cos(phi), v = sky.lake.b * 0.8 * Math.sin(phi);
           const x = c.x + t.x * u - t.y * v, z = c.y + t.y * u + t.x * v;
           sky.heron.obj.position.set(x, -2.05, z);
