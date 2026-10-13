@@ -2771,6 +2771,7 @@
         const fx = {};
         for (const [key, arr] of Object.entries(cd.parts)) {
           const [f, j] = key.includes("@") ? key.split("@") : [null, key];
+          if (f === "brr") continue; // the "brr" shiver lines are not drawn: the pale neon glow already shows the cold
           const o = originOf(j);
           const pos = new Float32Array(arr.length);
           for (let i = 0; i < arr.length; i += 3) (pos[i] = arr[i] - o[0]), (pos[i + 1] = -(arr[i + 1] - o[1])), (pos[i + 2] = 0);
