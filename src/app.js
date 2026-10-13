@@ -120,6 +120,7 @@
         timeScale: 1,
         distanceFactor: 1.0,
         realScale: false,
+        compass: true,
       };
       let bodyScale = 1;
       let sunBaseK = 0, sunBaseR = 0;
@@ -1220,20 +1221,58 @@
         return s;
       }
 
-      // a lost GPU device leaves both canvases black while the loop keeps running: tell the page (once) so it can reload
+      // A lost GPU device leaves the canvas black while the loop keeps running (three.js skips every render).
+      // The canvas is not tied to the device, so a new renderer on the same canvas gets a fresh device and
+      // re-uploads the scene on its next frame (https://toji.dev/webgpu-best-practices/device-loss).
+      // Only if that fails, or losses repeat, the page is asked to reload.
       let deviceLostSent = false;
-      function watchDevice(r) {
+      const restoreTimes = [];
+      function reportDeviceLost(info) {
+        if (deviceLostSent) return;
+        deviceLostSent = true;
+        UI.send("deviceLost", { message: info.message, reason: info.reason, place: sky.open ? { lat: sky.lat, lon: sky.lon } : null });
+      }
+      function watchDevice(r, which) {
         r.onDeviceLost = (info) => {
           r._onDeviceLost(info);
-          if (deviceLostSent) return;
-          deviceLostSent = true;
-          UI.send("deviceLost", { message: info.message, reason: info.reason, place: sky.open ? { lat: sky.lat, lon: sky.lon } : null });
+          const now = performance.now();
+          while (restoreTimes.length && now - restoreTimes[0] > 60000) restoreTimes.shift();
+          if (restoreTimes.length >= 3) return reportDeviceLost(info);
+          restoreTimes.push(now);
+          restoreRenderer(which).catch((err) => {
+            console.error("GPU device restore failed:", err);
+            reportDeviceLost(info);
+          });
         };
+      }
+      async function restoreRenderer(which) {
+        const main = which === "main";
+        const r = main
+          ? new THREE.WebGPURenderer({ antialias: true, reversedDepthBuffer: true, canvas: HOST.canvases.main })
+          : new THREE.WebGPURenderer({ canvas: HOST.canvases.sky, antialias: true });
+        r.setPixelRatio(Math.min(devicePixelRatio, QUALITY_TIERS[QUALITY.tier].dpr));
+        if (main) r.setSize(innerWidth, innerHeight, false);
+        else r.setSize(sky.viewW, sky.viewH, false);
+        await r.init();
+        // WebGPURenderer silently falls back to WebGL when WebGPU fails; this canvas already has a WebGPU context
+        if (!r.backend.isWebGPUBackend) throw new Error("no WebGPU device");
+        watchDevice(r, which);
+        r.toneMapping = THREE.NoToneMapping;
+        if (main) {
+          r.outputColorSpace = THREE.LinearSRGBColorSpace;
+          renderer = r;
+        } else {
+          r.outputColorSpace = THREE.SRGBColorSpace;
+          if (sky.post) sky.post = new THREE.RenderPipeline(r, sky.post.outputNode);
+          if (sky.precipFx) r.compute(sky.precipFx.init);
+          sky.renderer = r;
+        }
+        console.warn(`GPU device restored (${which} view)`);
       }
 
       async function initSky() {
         const r = new THREE.WebGPURenderer({ canvas: HOST.canvases.sky, antialias: true });
-        watchDevice(r);
+        watchDevice(r, "sky");
         r.setPixelRatio(Math.min(devicePixelRatio, QUALITY_TIERS[QUALITY.tier].dpr));
         const w = Math.max(1, skyIn.clientWidth > 1 ? skyIn.clientWidth : 600), h = Math.max(1, skyIn.clientHeight > 1 ? skyIn.clientHeight : 360);
         r.setSize(w, h, false);
@@ -1585,7 +1624,7 @@
           scene.add(snow);
 
           r.compute(init);
-          sky.precipFx = { rain, ripples, snow, update, fallU, windU, swayU, lightU, rainOnU, lenU, rippleScaleU };
+          sky.precipFx = { rain, ripples, snow, init, update, fallU, windU, swayU, lightU, rainOnU, lenU, rippleScaleU };
         }
 
         sky.grassField = await skyTask("Grass", Grass.create({
@@ -2377,6 +2416,7 @@
           for (const g of sky.gulls || []) if (g.obj.visible) proxies.push(g.proxy);
           if (sky.heron?.obj.visible) proxies.push(sky.heron.proxy);
           if (sky.clown?.obj.visible) proxies.push(sky.clown.proxy);
+          if (sky.climber && sky.backdrop?.visible && sky.climber.state !== "rest") proxies.push(sky.climber.proxy); // at rest he is hidden behind the foothills
           const hit = _ray.intersectObjects(proxies, false)[0];
           return hit ? { kind: hit.object.userData.kind, obj: hit.object, ref: hit.object.userData.ref || null } : null;
         };
@@ -2424,6 +2464,8 @@
                     ? gullCry({ obj: a.obj.parent }, true)
                     : a.kind === "heron"
                       ? heronCall()
+                    : a.kind === "climber"
+                      ? climberTap()
                     : a.ref
                       ? animalVoice(a.ref, true)
                       : soundAt("croak", a.obj, 1.6, 0.95 + Math.random() * 0.1, true),
@@ -2829,6 +2871,11 @@
         glow.position.set(0, -30, -2); // around the seated figure (pelvis drops 68 units when he sits), just behind it
         glow.renderOrder = 6;
         groups.root.add(glow);
+        // click target: a generous box around the figure (standing, seated or hanging), in SVG units around the pelvis
+        const proxy = new THREE.Mesh(new THREE.PlaneGeometry(220, 260), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+        proxy.position.set(0, -10, 0);
+        proxy.userData.kind = "climber";
+        groups.root.add(proxy);
         groups.root.traverse((o) => o.isMesh && (o.frustumCulled = false));
         groups.root.scale.setScalar(S);
         const holder = new THREE.Group();
@@ -2845,7 +2892,33 @@
         // the limbs move 1.6x slower than the CSS --climb-dur; one stride = two hand-over-hand pulls ~120 units,
         // so the body travels exactly as far as the hands pull and nothing slips
         const D = cd.climbDur * 1.6;
-        sky.climber = { cd, groups, fx, glowU, S, y0, y1, ySum, y: y0, state: "rest", t: 0, until: 0, D, speed: (120 * S) / D };
+        sky.climber = { cd, groups, fx, glowU, proxy, S, y0, y1, ySum, y: y0, state: "rest", t: 0, until: 0, D, speed: (120 * S) / D, tapAt: 0, tapTimer: 0, vy: 0, spin: 0 };
+      }
+      // one tap: he swears (the last word of the shiver meme); a double tap: he falls off the mountain.
+      // Mouse and touch alike, so the double tap is detected here rather than with dblclick.
+      function climberTap() {
+        const c = sky.climber;
+        if (!c) return;
+        const now = performance.now();
+        clearTimeout(c.tapTimer);
+        if (now - c.tapAt < 320) {
+          c.tapAt = 0;
+          climberFall();
+          return;
+        }
+        c.tapAt = now;
+        c.tapTimer = setTimeout(() => {
+          c.groups.root.getWorldPosition(_cw);
+          soundAt("curse", _cw.normalize().multiplyScalar(20), 1.6, 1, true);
+        }, 320);
+      }
+      function climberFall() {
+        const c = sky.climber;
+        if (!c || c.state === "fall" || c.y <= c.y0 + 1) return; // already falling, or down behind the foothills
+        c.state = "fall";
+        c.t = 0;
+        c.vy = 0;
+        c.spin = (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 3);
       }
       function poseClimber(c, anim, t, ease) {
         for (const [j, g] of Object.entries(c.groups)) {
@@ -2925,6 +2998,16 @@
           poseClimber(c, "climb", 1 - (c.t % D) / D, true); // animation-direction: reverse
           c.y = Math.max(c.y0, c.y - pull((c.t % D) / D));
           if (c.y <= c.y0 && c.t % D < dt) (c.state = "rest"), (c.until = now + 4000 + Math.random() * 6000);
+        } else if (c.state === "fall") {
+          // free fall from wherever he was, tumbling, limbs flung out; a fall from the summit takes ~1.6 s
+          c.glowU.on.value = 0;
+          const g = (2 * (c.ySum - c.y0)) / (1.6 * 1.6);
+          c.vy += g * dt;
+          c.y = Math.max(c.y0, c.y - c.vy * dt);
+          c.groups.root.rotation.z += c.spin * dt;
+          hangPose(c);
+          for (const [j, w] of [["ua-l", 1], ["ua-r", -1], ["th-l", 0.6], ["th-r", -0.6]]) if (c.groups[j]) c.groups[j].rotation.z += w * Math.sin(c.t * 18) * 0.5;
+          if (c.y <= c.y0) (c.groups.root.rotation.z = 0), (c.state = "rest"), (c.until = now + 4000 + Math.random() * 6000);
         }
         c.groups.root.position.y = c.y;
       }
@@ -3067,6 +3150,7 @@
         gull2: "assets/sounds/gull_2.mp3",
         gull3: "assets/sounds/gull_3.mp3",
         brr: "assets/sounds/brr.mp3",
+        curse: "assets/sounds/curse.mp3",
         heron1: "assets/sounds/heron_1.mp3",
         heron2: "assets/sounds/heron_2.mp3",
       };
@@ -4022,7 +4106,7 @@
           sky.moon.scale.setScalar((moonDeg * VIS_C) / MOON_VIS_DEG);
           sky.pxU.value.set(2 / W, 2 / H);
           for (const l of sky.labels) {
-            l.visible = true;
+            l.visible = PARAMS.compass;
             l.scale.setScalar(0.22 * (Math.tan((sky.fov / 2) * D2R) / Math.tan(35 * D2R)));
           }
           const cam = sky.camera;
@@ -4233,7 +4317,7 @@
         buildStatic();
 
         renderer = new THREE.WebGPURenderer({ antialias: true, reversedDepthBuffer: true, canvas: HOST.canvases.main });
-        watchDevice(renderer);
+        watchDevice(renderer, "main");
         renderer.setSize(innerWidth, innerHeight, false);
         renderer.setPixelRatio(devicePixelRatio);
         const initPromise = track(renderer.init(), "WebGPU");
@@ -4298,6 +4382,7 @@
           }
         }
         gui.add(PARAMS, "realScale").name("Show REAL scale").onChange(applyBodyScale);
+        gui.add(PARAMS, "compass").name("Show cardinal directions");
         PARAMS.quality = "Auto";
         gui.add(PARAMS, "quality", ["Auto", "High", "Medium", "Low", "Lowest"]).name("quality").onChange((v) => setQualityMode(v));
         const syncNow = () => {
