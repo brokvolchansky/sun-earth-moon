@@ -1,0 +1,14 @@
+# Cloudflare Pages response headers (https://developers.cloudflare.com/pages/configuration/headers/)
+# Heavy static files: browsers may reuse them for up to 3 hours without asking the server.
+# index.html and the entry scripts (build/page.js, build/worker-entry.js) keep the Pages default
+# (max-age=0, must-revalidate): their names do not change between deploys and they point to the
+# hashed chunks of the current deploy, so a stale copy must never be used.
+
+/assets/*
+  Cache-Control: public, max-age=10800
+
+/textures/*
+  Cache-Control: public, max-age=10800
+
+/build/chunks/*
+  Cache-Control: public, max-age=10800

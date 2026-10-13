@@ -2920,7 +2920,8 @@
         c.vy = 0;
         c.spin = (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 3);
         c.groups.root.getWorldPosition(_cw);
-        soundAt("fall", _cw.normalize().multiplyScalar(20), 1.6, 1, true); // the scream dies away in its own echo
+        // the scream dies away in its own echo; 3x louder than the other one-shots (at 20 m the panner leaves ~0.15 of it)
+        soundAt("fall", _cw.normalize().multiplyScalar(20), 4.8, 1, true);
       }
       function poseClimber(c, anim, t, ease) {
         for (const [j, g] of Object.entries(c.groups)) {
